@@ -1,2 +1,2 @@
-# lulu
+lulu project gaze-tracking 
 
