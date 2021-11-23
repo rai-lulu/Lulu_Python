@@ -106,7 +106,7 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                mp_drawing.draw_iris_landmarks_length(
+                mp_drawing.draw_iris_landmarks(
                     image=image,
                     landmark_list=face_landmarks)
         # Flip the image horizontally for a selfie-view display.
@@ -114,7 +114,7 @@ with mp_face_mesh.FaceMesh(
 
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            l1, l2, l3, l4 = calibration(cap, mp_face_mesh, mp_drawing)
+            center_ls, left_ls, right_ls, up_ls, down_ls = calibration(cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 

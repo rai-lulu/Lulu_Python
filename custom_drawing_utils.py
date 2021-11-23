@@ -36,7 +36,6 @@ RED_COLOR = (0, 0, 255)
 GREEN_COLOR = (0, 128, 0)
 BLUE_COLOR = (255, 0, 0)
 
-
 @dataclasses.dataclass
 class DrawingSpec:
     # Color for drawing the annotation. Default to the white color.
@@ -421,7 +420,7 @@ def draw_iris_landmarks(
                    iris_drawing_color, 1)
 
 
-def draw_iris_landmarks_length(distance: float, center: tuple, eye_image_dimensions: tuple,
+def draw_iris_landmarks_length(previous_result: tuple, distance: float, center: tuple, eye_image_dimensions: tuple,
                                image: np.ndarray,
                                landmark_list: landmark_pb2.NormalizedLandmarkList,
                                eye_key_indicies=[
@@ -485,9 +484,10 @@ def draw_iris_landmarks_length(distance: float, center: tuple, eye_image_dimensi
                                ],
                                eye_drwing_color=(255, 0, 0),
                                iris_drawing_color=(0, 0, 255)
-                               ):
+                               ) -> tuple:
     """This function draws iris landmarks and prints calculated distance to the user
     Args:
+        previous_result: center_coordinates of the previous frame
         distance: initial distance from calibration
         center: position of user's "middle" eye when looking at the center of the screen from calibration
         eye_image_dimensions: width and height of the reactangle where user's eyes moved during calibration
@@ -497,6 +497,8 @@ def draw_iris_landmarks_length(distance: float, center: tuple, eye_image_dimensi
         iris_key_indices: indices of irises' points
         eye_drawing_color: color of eyes' contours
         iris_drawing_color: irises' drawing color
+    Returns:
+        tuple: center_coordinates to be used as previous_result for the next frame 
     """
 
     curr_distance = find_distance(landmark_list, image)
@@ -523,7 +525,7 @@ def draw_iris_landmarks_length(distance: float, center: tuple, eye_image_dimensi
               + landmark_list.landmark[473].x) / 2 * image.shape[1], (landmark_list.landmark[468].y
                                                                       + landmark_list.landmark[473].y) / 2 * image.shape[0])
     # Center coordinates of the point on the screen where user is looking
-    center_coordinates = find_center_coordinates(
+    center_coordinates = find_center_coordinates(previous_result,
         distance, curr_distance, center, eye_image_dimensions, point)
     #center_coordinates = find_coordinates(curr_distance, point)
 
@@ -558,6 +560,8 @@ def draw_iris_landmarks_length(distance: float, center: tuple, eye_image_dimensi
     for landmark_px in idx_to_iris_coordinates.values():
         cv2.circle(image, landmark_px, 2,
                    iris_drawing_color, 1)
+    
+    return center_coordinates
 
 
 def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> float:
@@ -579,10 +583,11 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
     return distance
 
 
-def find_center_coordinates(distance: float, curr_distance: float, center: tuple,
+def find_center_coordinates(previous_result: tuple, distance: float, curr_distance: float, center: tuple,
                             eye_image_dimensions: tuple, point: tuple) -> tuple:
     """This function calculated center coordinates of the point on the screen where the user is looking
     Args:
+        previous_result: center_coordinates of the previous frame
         distance: distance from user's eyes to the camera from calibration
         curr_distance: distance from user's eyes to the camera now
         center: position of user's "middle" eye when looking at the center of the screen from calibration
@@ -590,6 +595,8 @@ def find_center_coordinates(distance: float, curr_distance: float, center: tuple
         point: current position of user's eyes
     Returns:
         tuple: center coordinates of the point on the screen the user is looking at"""
+    
+    gamma = 0.
     screen_center = (640, 360)
     w = 1280
     h = 720
@@ -603,10 +610,11 @@ def find_center_coordinates(distance: float, curr_distance: float, center: tuple
     y_shift = difference_y * w / eye_image_dimensions[1] * factor
     x_shift = difference_x * h / eye_image_dimensions[0] * factor
 
-    result_x = screen_center[0] - x_shift
-    result_y = screen_center[1] - y_shift
+    result_x = (screen_center[0] - x_shift) * (1 - gamma) + previous_result[0] * gamma
+    result_y = (screen_center[1] - y_shift) * (1 - gamma) + previous_result[1] * gamma
 
     result = (int(result_x), int(result_y))
+    #previous_result = result
     print('difference: ' + str(difference_x) + '   ' + str(difference_y))
     print('result: ' + str(result))
     return result

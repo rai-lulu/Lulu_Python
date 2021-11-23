@@ -2,7 +2,7 @@
 import mediapipe as mp
 import cv2
 from statistics import mean
-
+import time 
 from numpy.lib.twodim_base import eye
 import custom_drawing_utils
 
@@ -64,7 +64,7 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                 with mp_face_mesh.FaceMesh(
                         max_num_faces=1,
                         refine_landmarks=True,
-                        min_detection_confidence=0.5,
+                        min_detection_confidence=0.3,
                         min_tracking_confidence=0.5) as face_mesh:
                     results = face_mesh.process(annotated_image)
                     landmarks = results.multi_face_landmarks[0].landmark
@@ -86,11 +86,18 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
 
+previous_result = (640, 360)
 
 cap = cv2.VideoCapture(0)
 
 eye_image_dimensions, eye_center, distance = calibration(
     cap, mp_face_mesh, mp_drawing)
+
+# used to record the time when we processed last frame
+prev_frame_time = 0
+
+# used to record the time at which we processed current frame
+new_frame_time = 0
 
 with mp_face_mesh.FaceMesh(
         max_num_faces=1,
@@ -104,10 +111,21 @@ with mp_face_mesh.FaceMesh(
             # If loading a video, use 'break' instead of 'continue'.
             continue
 
+        # time when we finish processing for this frame
+        new_frame_time = time.time()
+    
+        # Calculating the fps
+
+        fps = 1/(new_frame_time-prev_frame_time)
+        prev_frame_time = new_frame_time
+    
+        fps = str(int(fps))
+
         # To improve performance, optionally mark the image as not writeable to
         # pass by reference.
         image.flags.writeable = False
         image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+        cv2.putText(image, fps, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 3, (100, 255, 0), 3, cv2.LINE_AA)
         results = face_mesh.process(image)
 
         # Draw the face mesh annotations on the image.
@@ -115,7 +133,7 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                mp_drawing.draw_iris_landmarks_length(distance, eye_center, eye_image_dimensions,
+                previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance, eye_center, eye_image_dimensions,
                                                       image=image,
                                                       landmark_list=face_landmarks)
         # Flip the image horizontally for a selfie-view display.
