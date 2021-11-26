@@ -520,10 +520,11 @@ def draw_iris_landmarks_length(previous_result: tuple, distance: float, center: 
                 thickness,
                 lineType)
 
-    # Current position of user's "middle" eye
-    point = ((landmark_list.landmark[468].x
-              + landmark_list.landmark[473].x) / 2 * image.shape[1], (landmark_list.landmark[468].y
-                                                                      + landmark_list.landmark[473].y) / 2 * image.shape[0])
+    # Current position of the center of user's "middle" eye
+    landmarks = landmark_list.landmark
+    point = (((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
+            (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
+
     # Center coordinates of the point on the screen where user is looking
     center_coordinates = find_center_coordinates(previous_result,
         distance, curr_distance, center, eye_image_dimensions, point)
@@ -596,7 +597,9 @@ def find_center_coordinates(previous_result: tuple, distance: float, curr_distan
     Returns:
         tuple: center coordinates of the point on the screen the user is looking at"""
     
-    gamma = 0.
+    #Smoothing parameter
+    gamma = 0.9
+    
     screen_center = (640, 360)
     w = 1280
     h = 720
@@ -605,13 +608,13 @@ def find_center_coordinates(previous_result: tuple, distance: float, curr_distan
     difference_y = center[1] - point[1]
 
     factor = curr_distance / distance
-    # factor = 1
+    #factor = 1
 
-    y_shift = difference_y * w / eye_image_dimensions[1] * factor
-    x_shift = difference_x * h / eye_image_dimensions[0] * factor
+    y_shift = difference_y * w / eye_image_dimensions[0] * factor
+    x_shift = difference_x * h / eye_image_dimensions[1] * factor
 
     result_x = (screen_center[0] - x_shift) * (1 - gamma) + previous_result[0] * gamma
-    result_y = (screen_center[1] - y_shift) * (1 - gamma) + previous_result[1] * gamma
+    result_y = (screen_center[1] + y_shift) * (1 - gamma) + previous_result[1] * gamma
 
     result = (int(result_x), int(result_y))
     #previous_result = result
