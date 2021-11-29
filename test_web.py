@@ -12,9 +12,13 @@ import pyshine as ps
 import mediapipe as mp
 import custom_drawing_utils
 from statistics import mean
+from pathlib import Path
+import sys
 
 from engineio.payload import Payload
 
+FILE = Path(__file__).absolute()
+sys.path.append(FILE.as_posix())
 
 Payload.max_decode_packets = 2048
 
@@ -92,7 +96,6 @@ def calibration_image(data_image):
 
     if prev_time == 0:
         prev_time = time.time()
-        return
     
     curr_time = time.time()
     difference = curr_time - prev_time
@@ -117,6 +120,10 @@ def calibration_image(data_image):
             eye_image_dimensions = (eye_image_width, eye_image_height)
             distance = mean(distances)
             eye_center = points[0]
+
+            points = []
+            distances = []
+
             emit('redirect', {'url': url_for('tracking')})
 
     frame = draw_calibraion(frame, factors[counter])
@@ -209,10 +216,11 @@ def draw_results(frame):
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
+            previous_result = mp_drawing.draw_iris_landmarks_length(True, previous_result, distance,
                                                                     eye_center, eye_image_dimensions,
                                                                     image=frame,
                                                                     landmark_list=face_landmarks)
+
     return frame
 
 

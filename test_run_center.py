@@ -135,7 +135,7 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
+                previous_result = mp_drawing.draw_iris_landmarks_length(False, previous_result, distance,
                                                                         eye_center, eye_image_dimensions,
                                                                         image=image,
                                                                         landmark_list=face_landmarks)

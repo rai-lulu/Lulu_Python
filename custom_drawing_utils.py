@@ -420,7 +420,7 @@ def draw_iris_landmarks(
                    iris_drawing_color, 1)
 
 
-def draw_iris_landmarks_length(previous_result: tuple, distance: float, center: tuple, eye_image_dimensions: tuple,
+def draw_iris_landmarks_length(web: bool, previous_result: tuple, distance: float, center: tuple, eye_image_dimensions: tuple,
                                image: np.ndarray,
                                landmark_list: landmark_pb2.NormalizedLandmarkList,
                                eye_key_indicies=[
@@ -526,7 +526,7 @@ def draw_iris_landmarks_length(previous_result: tuple, distance: float, center: 
             (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
 
     # Center coordinates of the point on the screen where user is looking
-    center_coordinates = find_center_coordinates(previous_result,
+    center_coordinates = find_center_coordinates(web, image, previous_result,
         distance, curr_distance, center, eye_image_dimensions, point)
     #center_coordinates = find_coordinates(curr_distance, point)
 
@@ -584,7 +584,7 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
     return distance
 
 
-def find_center_coordinates(previous_result: tuple, distance: float, curr_distance: float, center: tuple,
+def find_center_coordinates(web: bool, image: np.ndarray,previous_result: tuple, distance: float, curr_distance: float, center: tuple,
                             eye_image_dimensions: tuple, point: tuple) -> tuple:
     """This function calculated center coordinates of the point on the screen where the user is looking
     Args:
@@ -600,9 +600,14 @@ def find_center_coordinates(previous_result: tuple, distance: float, curr_distan
     #Smoothing parameter
     gamma = 0.9
     
-    screen_center = (640, 360)
-    w = 1280
-    h = 720
+    #desktop parameters 
+    # screen_center = (640, 360)
+    # w = 1280
+    # h = 720
+    
+    w = image.shape[1]
+    h = image.shape[0]
+    screen_center = (w/2, h/2)
 
     difference_x = center[0] - point[0]
     difference_y = center[1] - point[1]
@@ -614,7 +619,19 @@ def find_center_coordinates(previous_result: tuple, distance: float, curr_distan
     x_shift = difference_x * h / eye_image_dimensions[1] * factor
 
     result_x = (screen_center[0] - x_shift) * (1 - gamma) + previous_result[0] * gamma
-    result_y = (screen_center[1] + y_shift) * (1 - gamma) + previous_result[1] * gamma
+    if web:
+        result_y = (screen_center[1] - y_shift) * (1 - gamma) + previous_result[1] * gamma
+    else:
+        result_y = (screen_center[1] + y_shift) * (1 - gamma) + previous_result[1] * gamma
+    if result_x < 0: 
+        result_x = 0
+    elif result_x > screen_center[0] * 2:
+        result_x = screen_center[0] * 2
+    
+    if result_y < 0: 
+        result_y = 0
+    elif result_y > screen_center[1] * 2:
+        result_y = screen_center[1] * 2
 
     result = (int(result_x), int(result_y))
     #previous_result = result
