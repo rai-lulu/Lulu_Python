@@ -28,7 +28,8 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                 print("Ignoring empty camera frame.")
                 # If loading a video, use 'break' instead of 'continue'.
                 continue
-            annotated_image = cv2.flip(image.copy(), 1)
+            annotated_image = image.copy()
+            annotated_image = cv2.flip(annotated_image, 1)
             image.flags.writeable = False
             image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
 
@@ -76,10 +77,10 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
             elif pressedKey == 27:
                 cap.release()
                 raise SystemExit
-    print(points)
+
     eye_image_height = points[4][1] - points[3][1]
-    eye_image_width = points[1][0] - points[2][0]
-    print((eye_image_width, eye_image_height))
+    eye_image_width = points[2][0] - points[1][0]
+
     return ((eye_image_width, eye_image_height), points[0], mean(distances))
 
 
@@ -135,11 +136,10 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                previous_result = mp_drawing.draw_iris_landmarks_length(False, previous_result, distance,
+                previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
                                                                         eye_center, eye_image_dimensions,
                                                                         image=image,
                                                                         landmark_list=face_landmarks)
-                print(image.shape)
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
 

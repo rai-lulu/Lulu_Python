@@ -92,6 +92,9 @@ counter = 0
 
 @socketio.on('image_calibration')
 def calibration_image(data_image):
+    """This function emits image during calibration
+    Args:
+        data_image: image from webcam"""
     global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions
 
     if prev_time == 0:
@@ -102,6 +105,9 @@ def calibration_image(data_image):
 
     frame = (readb64(data_image))
 
+    frame = cv2.flip(frame, 1)
+
+    #Time interval between calibration points
     if difference >= 2:
         counter += 1
         prev_time = curr_time
@@ -116,7 +122,7 @@ def calibration_image(data_image):
             counter = 0
             prev_time = 0
             eye_image_height = points[4][1] - points[3][1]
-            eye_image_width = points[1][0] - points[2][0]
+            eye_image_width = points[2][0] - points[1][0]
             eye_image_dimensions = (eye_image_width, eye_image_height)
             distance = mean(distances)
             eye_center = points[0]
@@ -145,8 +151,13 @@ def calibration_image(data_image):
 
 
 
-def draw_calibraion(image, factor):
-    annotated_image = cv2.flip(image.copy(), 1)
+def draw_calibraion(image: np.ndarray, factor: tuple) -> np.ndarray:
+    """This function draws needed dots on the current image during calibration
+    Args:
+        image: image to be processed
+        factor: describes where the current dot needs to be drawn
+    Returns:
+        image: processed image"""
     # image.flags.writeable = False
     # image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
 
@@ -157,7 +168,7 @@ def draw_calibraion(image, factor):
     thickness = 1
     lineType = 2
 
-    cv2.putText(annotated_image, 'Please, look at the red circle and press Space',
+    cv2.putText(image, 'Please, look at the red circle and press Space',
                 bottomLeftCornerOfText,
                 font,
                 fontScale,
@@ -173,13 +184,16 @@ def draw_calibraion(image, factor):
     color = (0, 0, 255)
 
     thickness = -1
-    cv2.circle(annotated_image, center_coordinates, radius, color, thickness)
+    cv2.circle(image, center_coordinates, radius, color, thickness)
 
-    return annotated_image
+    return image
 
 
 @socketio.on('image_tracking')
 def tracking_image(data_image):
+    """This function emits image during gaze_tracking
+    Args:
+        data_image: image to be processed"""
     global fps, cnt, prev_recv_time, fps_array
     recv_time = time.time()
     text = 'FPS: '+str(fps)
@@ -208,7 +222,12 @@ def tracking_image(data_image):
         cnt = 0
 
 
-def draw_results(frame):
+def draw_results(frame: np.ndarray) -> np.ndarray:
+    """This function draws the dot on the screen the user is looking at
+    Args:
+        frame: image to be processed
+    Returns:
+        frame: processed image"""
     global previous_result, eye_center, eye_image_dimensions, distance
     frame.flags.writeable = False
     frame = cv2.flip(frame, 1)
@@ -216,7 +235,7 @@ def draw_results(frame):
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            previous_result = mp_drawing.draw_iris_landmarks_length(True, previous_result, distance,
+            previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
                                                                     eye_center, eye_image_dimensions,
                                                                     image=frame,
                                                                     landmark_list=face_landmarks)

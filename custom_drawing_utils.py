@@ -420,7 +420,7 @@ def draw_iris_landmarks(
                    iris_drawing_color, 1)
 
 
-def draw_iris_landmarks_length(web: bool, previous_result: tuple, distance: float, center: tuple, eye_image_dimensions: tuple,
+def draw_iris_landmarks_length(previous_result: tuple, distance: float, center: tuple, eye_image_dimensions: tuple,
                                image: np.ndarray,
                                landmark_list: landmark_pb2.NormalizedLandmarkList,
                                eye_key_indicies=[
@@ -526,7 +526,7 @@ def draw_iris_landmarks_length(web: bool, previous_result: tuple, distance: floa
             (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
 
     # Center coordinates of the point on the screen where user is looking
-    center_coordinates = find_center_coordinates(web, image, previous_result,
+    center_coordinates = find_center_coordinates(image, previous_result,
         distance, curr_distance, center, eye_image_dimensions, point)
     #center_coordinates = find_coordinates(curr_distance, point)
 
@@ -584,10 +584,11 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
     return distance
 
 
-def find_center_coordinates(web: bool, image: np.ndarray,previous_result: tuple, distance: float, curr_distance: float, center: tuple,
+def find_center_coordinates(image: np.ndarray,previous_result: tuple, distance: float, curr_distance: float, center: tuple,
                             eye_image_dimensions: tuple, point: tuple) -> tuple:
     """This function calculated center coordinates of the point on the screen where the user is looking
     Args:
+        image: image to be processed 
         previous_result: center_coordinates of the previous frame
         distance: distance from user's eyes to the camera from calibration
         curr_distance: distance from user's eyes to the camera now
@@ -615,28 +616,26 @@ def find_center_coordinates(web: bool, image: np.ndarray,previous_result: tuple,
     factor = curr_distance / distance
     #factor = 1
 
-    y_shift = difference_y * w / eye_image_dimensions[0] * factor
-    x_shift = difference_x * h / eye_image_dimensions[1] * factor
+    y_shift = difference_y * h / eye_image_dimensions[1] * factor
+    x_shift = difference_x * w / eye_image_dimensions[0] * factor
 
     result_x = (screen_center[0] - x_shift) * (1 - gamma) + previous_result[0] * gamma
-    if web:
-        result_y = (screen_center[1] - y_shift) * (1 - gamma) + previous_result[1] * gamma
-    else:
-        result_y = (screen_center[1] + y_shift) * (1 - gamma) + previous_result[1] * gamma
+    result_y = (screen_center[1] - y_shift) * (1 - gamma) + previous_result[1] * gamma
+
     if result_x < 0: 
         result_x = 0
-    elif result_x > screen_center[0] * 2:
-        result_x = screen_center[0] * 2
+    elif result_x > w:
+        result_x = w
     
     if result_y < 0: 
         result_y = 0
-    elif result_y > screen_center[1] * 2:
-        result_y = screen_center[1] * 2
+    elif result_y > h:
+        result_y = h
 
     result = (int(result_x), int(result_y))
     #previous_result = result
-    print('difference: ' + str(difference_x) + '   ' + str(difference_y))
-    print('result: ' + str(result))
+    # print('difference: ' + str(difference_x) + '   ' + str(difference_y))
+    # print('result: ' + str(result))
     return result
 
 
