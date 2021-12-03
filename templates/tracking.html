@@ -43,7 +43,7 @@
 </head>
 
 <body>
-    <!-- <a href="{{ url_for('calibration') }}">Recalibrate</a> -->
+    <a href="{{ url_for('calibration') }}">Recalibrate</a>
     <div id="container">
         <video hidden autoplay playsinline id="videoElement"></video>
         <canvas hidden id="canvas"></canvas>
@@ -76,7 +76,7 @@
                 });
         }
 
-        const FPS = 25;
+        const FPS = 8;
         setInterval(() => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;

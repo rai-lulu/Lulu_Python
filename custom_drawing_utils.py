@@ -579,7 +579,7 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
     iris_length_pixels_right = math.sqrt(((landmark_list.landmark[476].x - landmark_list.landmark[474].x) * image.shape[1]) ** 2
                                          + ((landmark_list.landmark[476].y - landmark_list.landmark[474].y) * image.shape[0]) ** 2)
     distance = int(iris_length * focal_length /
-                   ((iris_length_pixels_left + iris_length_pixels_right) / 2)) / 10
+                   ((iris_length_pixels_left + iris_length_pixels_right) / 2 )) / 10
 
     return distance
 

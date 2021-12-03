@@ -12,6 +12,8 @@
             /* Safari and Chrome */
             -moz-transform: rotateY(180deg);
             /* Firefox */
+
+
         }
 
         body {
@@ -41,7 +43,7 @@
 </head>
 
 <body>
-
+    
     <div id="container">
         <video hidden autoplay playsinline id="videoElement"></video>
         <canvas hidden id="canvas"></canvas>
@@ -83,15 +85,12 @@
             context.drawImage(video, 0, 0, width, height);
             var data = canvas.toDataURL('image/jpeg', 0.5);
             context.clearRect(0, 0, width, height);
-            socket.emit('image_calibration', data);
+            socket.emit('image', data);
         }, 1000 / FPS);
 
         socket.on('response_back', function (image) {
             photo.setAttribute('src', image);
 
-        });
-        socket.on('redirect', function (data) {
-            window.location = data.url;
         });
 
     </script>

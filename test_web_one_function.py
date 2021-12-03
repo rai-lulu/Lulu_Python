@@ -28,21 +28,7 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 
 @app.route('/', methods=['POST', 'GET'])
 def index():
-    return render_template('index.html')
-
-
-@app.route('/calibration', methods=['POST', 'GET'])
-def calibration():
-    return render_template('calibration.html')
-
-
-@app.route('/tracking', methods=['POST', 'GET'])
-def tracking():
-    return render_template('tracking.html')
-
-@app.errorhandler(Exception)
-def request_entity_too_large(error):
-    return render_template('index.html')
+    return render_template('test_template.html')
 
 
 def readb64(base64_string):
@@ -94,58 +80,59 @@ prev_time = 0
 factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 counter = 0
 
-@socketio.on('image_calibration')
+@socketio.on('image')
 def calibration_image(data_image):
     """This function emits image during calibration
     Args:
         data_image: image from webcam"""
     global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions
 
-    if prev_time == 0:
-        prev_time = time.time()
-    
-    curr_time = time.time()
-    difference = curr_time - prev_time
-
     frame = (readb64(data_image))
 
-    frame = cv2.flip(frame, 1)
-    frame = draw_calibraion(frame, factors[counter])
+    if eye_image_dimensions is None:
+        if prev_time == 0:
+            prev_time = time.time()
+        
+        curr_time = time.time()
+        difference = curr_time - prev_time
 
+        frame = cv2.flip(frame, 1)
+        frame = draw_calibraion(frame, factors[counter])
 
-    #Time interval between calibration points
-    if difference >= 4:
-        counter += 1
-        prev_time = curr_time
-        results = face_mesh.process(frame)
-        if results.multi_face_landmarks:
-            landmarks = results.multi_face_landmarks[0].landmark
-            points.append(((landmarks[473].x + landmarks[468].x) / 2 * frame.shape[1],
-                            (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
-            distances.append(mp_drawing.find_distance(
-                results.multi_face_landmarks[0], frame))
-    if counter == 5:
-        counter = 0
-        prev_time = 0
-        try:        
+        #Time interval between calibration points
+        if difference >= 4:
+            counter += 1
+            prev_time = curr_time
+            results = face_mesh.process(frame)
+            if results.multi_face_landmarks:
+                landmarks = results.multi_face_landmarks[0].landmark
+                points.append(((landmarks[473].x + landmarks[468].x) / 2 * frame.shape[1],
+                                (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
+                distances.append(mp_drawing.find_distance(
+                    results.multi_face_landmarks[0], frame))
+        
+        if counter == 5:
+            counter = 0
+            prev_time = 0
             eye_image_height = points[4][1] - points[3][1]
             eye_image_width = points[2][0] - points[1][0]
-            if eye_image_height < 0 or eye_image_width < 0:
-                raise Exception
             eye_image_dimensions = (eye_image_width, eye_image_height)
             distance = mean(distances)
             eye_center = points[0]
+            print(eye_image_dimensions)
             points = []
             distances = []
 
-            emit('redirect', {'url': url_for('tracking')})
+        print(counter)
 
-        except:
-            print("EXCEPTION OCCURED!!!!!")
-            emit('redirect', {'url': url_for('index')})
+    else:
+        recv_time = time.time()
+        text = 'FPS: '+str(fps)
+        frame = (readb64(data_image))
+        frame = draw_results(frame)
+        frame = ps.putBText(frame, text, text_offset_x=20, text_offset_y=30, vspace=20,
+                            hspace=10, font_scale=1.0, background_RGB=(10, 20, 222), text_RGB=(255, 255, 255))
 
-
-    print(counter)
     imgencode = cv2.imencode(
         '.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
 
@@ -156,11 +143,6 @@ def calibration_image(data_image):
 
     # emit the frame back
     emit('response_back', stringData)
-
-    cnt += 1
-    if cnt == 30:
-        cnt = 0
-
 
 
 def draw_calibraion(image: np.ndarray, factor: tuple) -> np.ndarray:
@@ -199,39 +181,6 @@ def draw_calibraion(image: np.ndarray, factor: tuple) -> np.ndarray:
     cv2.circle(image, center_coordinates, radius, color, thickness)
 
     return image
-
-
-@socketio.on('image_tracking')
-def tracking_image(data_image):
-    """This function emits image during gaze_tracking
-    Args:
-        data_image: image to be processed"""
-    global fps, cnt, prev_recv_time, fps_array
-    recv_time = time.time()
-    text = 'FPS: '+str(fps)
-    frame = (readb64(data_image))
-    frame = draw_results(frame)
-    frame = ps.putBText(frame, text, text_offset_x=20, text_offset_y=30, vspace=20,
-                        hspace=10, font_scale=1.0, background_RGB=(10, 20, 222), text_RGB=(255, 255, 255))
-    imgencode = cv2.imencode('.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
-
-    # base64 encode
-    stringData = base64.b64encode(imgencode).decode('utf-8')
-    b64_src = 'data:image/jpeg;base64,'
-    stringData = b64_src + stringData
-
-    # emit the frame back
-    emit('response_back', stringData)
-
-    fps = 1/(recv_time - prev_recv_time)
-    fps_array.append(fps)
-    fps = round(moving_average(np.array(fps_array)), 1)
-    prev_recv_time = recv_time
-    # print(fps_array)
-    cnt += 1
-    if cnt == 30:
-        fps_array = [fps]
-        cnt = 0
 
 
 def draw_results(frame: np.ndarray) -> np.ndarray:
