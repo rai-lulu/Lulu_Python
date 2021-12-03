@@ -69,8 +69,19 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
             elif pressedKey == 27:
                 cap.release()
                 raise SystemExit
-    print(ls)
-    return ls
+
+    #from l1 when user looks down substract l1 when he looks up, from l3 when user looks up substract l3 when he looks down,
+    #Take their average
+    eye_image_height = (ls[3][0] - ls[1][0] + ls[1][2] - ls[3][2]) / 2
+
+    #from l2 when user looks left substract l2 whem he looks right, from l4 when the user looks right substract l4 when he looks
+    #left, take their average 
+    eye_image_width = (ls[2][3] - ls[4][3] + ls[4][1] - ls[2][1]) / 2
+
+    distance_from_top = ls[1][0]
+    distance_from_left = ls[2][1]
+
+    return (eye_image_width, eye_image_height), distance_from_top, distance_from_left
 
 
 mp_drawing = custom_drawing_utils
@@ -79,7 +90,12 @@ mp_face_mesh = mp.solutions.face_mesh
 
 cap = cv2.VideoCapture(0)
 
-center_ls, left_ls, right_ls, up_ls, down_ls = calibration(
+w = int(cap.get(3))
+h = int(cap.get(4))
+
+writer = cv2.VideoWriter('./video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+
+eye_image_dimensions, distance_from_top, distance_from_left = calibration(
     cap, mp_face_mesh, mp_drawing)
 
 
@@ -110,6 +126,7 @@ with mp_face_mesh.FaceMesh(
                     image=image,
                     landmark_list=face_landmarks)
         # Flip the image horizontally for a selfie-view display.
+        writer.write(image)  
         cv2.imshow('MediaPipe Face Mesh', image)
 
         pressedKey = cv2.waitKey(1) & 0xFF
@@ -119,3 +136,4 @@ with mp_face_mesh.FaceMesh(
             break
 
 cap.release()
+writer.release()

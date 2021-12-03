@@ -342,6 +342,41 @@ def draw_iris_landmarks(
         158,
         157,
         173,
+        #Added landmarks for brows left eye
+        113,
+        225,
+        224,
+        223,
+        222,
+        221,
+        189,
+        226,
+        31,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        244,
+        
+        #Added landmarks for brows right eye
+        413,
+        441,
+        442,
+        443,
+        444,
+        445,
+        342,
+        446,
+        261,
+        448,
+        449,
+        450,
+        451,
+        452,
+        453,
+        463,
 
         # Right eye
         # eye lower contour
@@ -584,6 +619,12 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
     return distance
 
 
+def find_center_coordinates_ls(image: np.ndarray,previous_result: tuple, distance: float, curr_distance: float, 
+                            distance_from_top: float, distance_from_left: float,
+                            eye_image_dimensions: tuple, point: tuple) -> tuple:
+    return 
+
+
 def find_center_coordinates(image: np.ndarray,previous_result: tuple, distance: float, curr_distance: float, center: tuple,
                             eye_image_dimensions: tuple, point: tuple) -> tuple:
     """This function calculated center coordinates of the point on the screen where the user is looking
@@ -649,14 +690,14 @@ def find_ls(landmarks: list, image: np.ndarray) -> list:
     # find "middle_eye" by getting the average of 5 points on left and right eyes
     eye_center = ((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
                   (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0])
-    right_point = ((landmarks[33].x + landmarks[362].x) / 2 * image.shape[1],
-                   (landmarks[33].y + landmarks[362].y) / 2 * image.shape[0])
-    left_point = ((landmarks[133].x + landmarks[263].x) / 2 * image.shape[1],
-                  (landmarks[133].y + landmarks[263].y) / 2 * image.shape[0])
-    bottom_point = ((landmarks[145].x + landmarks[374].x) / 2 * image.shape[1],
-                    (landmarks[145].y + landmarks[374].y) / 2 * image.shape[0])
-    upper_point = ((landmarks[386].x + landmarks[159].x) / 2 * image.shape[1],
-                   (landmarks[386].y + landmarks[159].y) / 2 * image.shape[0])
+    right_point = ((landmarks[226].x + landmarks[464].x) / 2 * image.shape[1],
+                   (landmarks[226].y + landmarks[464].y) / 2 * image.shape[0])
+    left_point = ((landmarks[244].x + landmarks[446].x) / 2 * image.shape[1],
+                  (landmarks[244].y + landmarks[446].y) / 2 * image.shape[0])
+    bottom_point = ((landmarks[230].x + landmarks[450].x) / 2 * image.shape[1],
+                    (landmarks[230].y + landmarks[450].y) / 2 * image.shape[0])
+    upper_point = ((landmarks[222].x + landmarks[443].x) / 2 * image.shape[1],
+                   (landmarks[222].y + landmarks[443].y) / 2 * image.shape[0])
 
     # Calculate distances
     l1 = math.dist(upper_point, eye_center)
