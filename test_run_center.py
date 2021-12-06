@@ -136,10 +136,12 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
-                                                                        eye_center, eye_image_dimensions,
+                previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+                                                                        eye_image_dimensions,
                                                                         image=image,
-                                                                        landmark_list=face_landmarks)
+                                                                        landmark_list=face_landmarks,
+                                                                        center=eye_center,
+                                                                        type='center')
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
 

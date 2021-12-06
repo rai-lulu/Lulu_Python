@@ -247,10 +247,12 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            previous_result = mp_drawing.draw_iris_landmarks_length(previous_result, distance,
-                                                                    eye_center, eye_image_dimensions,
+            previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+                                                                    eye_image_dimensions,
                                                                     image=frame,
-                                                                    landmark_list=face_landmarks)
+                                                                    landmark_list=face_landmarks,
+                                                                    center=eye_center,
+                                                                    type='center')
 
     return frame
 

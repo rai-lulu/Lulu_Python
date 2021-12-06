@@ -1,4 +1,4 @@
-
+from statistics import mean
 import mediapipe as mp
 import cv2
 import custom_drawing_utils
@@ -13,7 +13,9 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
     Returns:
         list: width and height of the reactangle where user's eyes moved during calibration,
          center point, distance from the user to the camera"""
-    ls = []
+    distances = []
+    points = []
+    luft = None
 
     #Center, left, right, up, down
     factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
@@ -60,28 +62,33 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                 with mp_face_mesh.FaceMesh(
                         max_num_faces=1,
                         refine_landmarks=True,
-                        min_detection_confidence=0.5,
+                        min_detection_confidence=0.3,
                         min_tracking_confidence=0.5) as face_mesh:
-                    results = face_mesh.process(annotated_image)
-                    ls.append(mp_drawing.find_ls(
-                        results.multi_face_landmarks[0].landmark, image))
-                    break
+                    results = face_mesh.process(image)
+                    if results.multi_face_landmarks:
+                        landmarks = results.multi_face_landmarks[0].landmark
+                        if luft is None:
+                            eye_center, right_point, left_point, bottom_point, upper_point = mp_drawing.find_points(landmarks,
+                                                                                                                    image)
+
+                            luft_x = (
+                                left_point[0] + right_point[0]) / 2 - eye_center[0]
+                            luft_y = (
+                                upper_point[1] + bottom_point[1]) / 2 - eye_center[1]
+                            luft = (luft_x, luft_y)
+                        distances.append(mp_drawing.find_distance(
+                            results.multi_face_landmarks[0], image))
+                        points.append(((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
+                                       (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
+                        break
             elif pressedKey == 27:
                 cap.release()
                 raise SystemExit
 
-    #from l1 when user looks down substract l1 when he looks up, from l3 when user looks up substract l3 when he looks down,
-    #Take their average
-    eye_image_height = (ls[3][0] - ls[1][0] + ls[1][2] - ls[3][2]) / 2
+    eye_image_height = points[4][1] - points[3][1]
+    eye_image_width = points[2][0] - points[1][0]
 
-    #from l2 when user looks left substract l2 whem he looks right, from l4 when the user looks right substract l4 when he looks
-    #left, take their average 
-    eye_image_width = (ls[2][3] - ls[4][3] + ls[4][1] - ls[2][1]) / 2
-
-    distance_from_top = ls[1][0]
-    distance_from_left = ls[2][1]
-
-    return (eye_image_width, eye_image_height), distance_from_top, distance_from_left
+    return (eye_image_width, eye_image_height), mean(distances), luft, points[0]
 
 
 mp_drawing = custom_drawing_utils
@@ -93,11 +100,13 @@ cap = cv2.VideoCapture(0)
 w = int(cap.get(3))
 h = int(cap.get(4))
 
-writer = cv2.VideoWriter('./video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+writer = cv2.VideoWriter(
+    './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
 
-eye_image_dimensions, distance_from_top, distance_from_left = calibration(
+eye_image_dimensions, distance, luft, eye_center = calibration(
     cap, mp_face_mesh, mp_drawing)
 
+previous_result = (640, 360)
 
 with mp_face_mesh.FaceMesh(
         max_num_faces=1,
@@ -122,16 +131,20 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                mp_drawing.draw_iris_landmarks(
-                    image=image,
-                    landmark_list=face_landmarks)
+                # previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+                #                                            eye_image_dimensions,
+                #                                            image=image,
+                #                                            landmark_list=face_landmarks, center=eye_center,
+                #                                            type='contour', luft=luft)
+                mp_drawing.draw_iris_landmarks(image, face_landmarks)
         # Flip the image horizontally for a selfie-view display.
-        writer.write(image)  
+        writer.write(image)
         cv2.imshow('MediaPipe Face Mesh', image)
 
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            center_ls, left_ls, right_ls, up_ls, down_ls = calibration(cap, mp_face_mesh, mp_drawing)
+            eye_image_dimensions, distance, luft = calibration(
+                cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
