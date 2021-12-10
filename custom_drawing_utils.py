@@ -25,6 +25,7 @@ import numpy as np
 from mediapipe.framework.formats import detection_pb2
 from mediapipe.framework.formats import location_data_pb2
 from mediapipe.framework.formats import landmark_pb2
+from numpy.lib.twodim_base import eye
 
 _PRESENCE_THRESHOLD = 0.5
 _VISIBILITY_THRESHOLD = 0.5
@@ -344,13 +345,7 @@ def draw_iris_landmarks(
         157,
         173,
         # Added landmarks for the left eye
-        65,
-        244,
-        245,
-        113,
-        124,
-        119,
-        120,
+
 
         # Added landmarks for the right eye
 
@@ -434,10 +429,11 @@ def draw_iris_landmarks(
 
 def gaze_tracking(previous_result: tuple, distance: float, eye_image_dimensions: tuple,
                   image: np.ndarray,
-                  landmark_list: landmark_pb2.NormalizedLandmarkList, center=None, type=None, luft=None,
+                  landmark_list: landmark_pb2.NormalizedLandmarkList, check_points=None, center=None, type=None, luft=None,
                   eye_key_indicies=[
         # Left eye
         # eye lower contour
+        168,
                       33,
                       7,
                       163,
@@ -532,28 +528,45 @@ def gaze_tracking(previous_result: tuple, distance: float, eye_image_dimensions:
 
     # Current position of the center of user's "middle" eye
     landmarks = landmark_list.landmark
-    eye_center, right_point, left_point, bottom_point, upper_point = find_points(landmarks, image)
+    eye_center, right_point, left_point, bottom_point, upper_point = find_points(
+        landmarks, image)
 
     # Center coordinates of the point on the screen where the user is looking
     if type == 'center':
         center_coordinates = find_center_coordinates(image, previous_result,
                                                      distance, curr_distance, center, eye_image_dimensions, eye_center)
     elif type == 'contour':
-        center_coordinates = find_center_coordinates(image, previous_result,
-                                                distance, curr_distance, center, eye_image_dimensions, eye_center)
         center_coordinates = find_center_coordinates_enhanced(image, previous_result,
-                                                        distance, curr_distance,
-                                                        eye_image_dimensions, upper_point, left_point, bottom_point,
-                                                        right_point, eye_center, luft
-                                                        )
+                                                              distance, curr_distance,
+                                                              eye_image_dimensions, upper_point, left_point, bottom_point,
+                                                              right_point, eye_center, luft, center
+                                                              )
     else:
         raise ValueError('Unknown gaze_tracking type.')
 
+    radius = 5
+
+    color = (0, 0, 0)
+
+    thickness = -1
+    #Current eye_center
+    cv2.circle(image, (int(eye_center[0]), int(eye_center[1])), radius, color, thickness)
+    #Other current points 
+    # for point in find_check_coordinates(landmark_list, image):
+    #     cv2.circle(image, point, radius, color, thickness)
+
+    color = (255, 255, 255)
+    #Eye_center from calibration
+    cv2.circle(image, center, radius, color, thickness)
+
+    #Other points from calibration
+    # for point in check_points:
+    #     cv2.circle(image, point, radius, color, thickness)
+    
     radius = 50
 
     color = (0, 0, 255)
 
-    thickness = -1
     cv2.circle(image, center_coordinates, radius, color, thickness)
 
     if not landmark_list:
@@ -584,6 +597,30 @@ def gaze_tracking(previous_result: tuple, distance: float, eye_image_dimensions:
     return center_coordinates
 
 
+def find_iris_center(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> tuple:
+
+    landmarks = landmark_list.landmark
+
+    return ((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
+            (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0])
+
+
+def find_check_coordinates(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> list:
+
+    result = []
+
+    result.append((int(landmark_list.landmark[10].x * image.shape[1]),
+                  int(landmark_list.landmark[10].y * image.shape[0])))
+    result.append((int(landmark_list.landmark[152].x * image.shape[1]),
+                  int(landmark_list.landmark[152].y * image.shape[0])))
+    result.append((int(landmark_list.landmark[366].x * image.shape[1]),
+                  int(landmark_list.landmark[366].y * image.shape[0])))
+    result.append((int(landmark_list.landmark[123].x * image.shape[1]),
+                  int(landmark_list.landmark[123].y * image.shape[0])))
+
+    return result
+
+
 def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> float:
     """This function calculates distance to the user's eyes from the camera
     Args:
@@ -604,8 +641,8 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
 
 
 def find_center_coordinates_enhanced(image: np.ndarray, previous_result: tuple, distance: float, curr_distance: float,
-                               eye_image_dimensions: tuple, upper_point: tuple, left_point: tuple, bottom_point:tuple,
-                               right_point: tuple, iris_center: tuple, luft:tuple) -> tuple:
+                                     eye_image_dimensions: tuple, upper_point: tuple, left_point: tuple, bottom_point: tuple,
+                                     right_point: tuple, iris_center: tuple, luft: tuple) -> tuple:
 
     factor = curr_distance / distance
     # Smoothing parameter
@@ -620,8 +657,20 @@ def find_center_coordinates_enhanced(image: np.ndarray, previous_result: tuple, 
     h = image.shape[0]
     screen_center = (w/2, h/2)
 
-    center_x = (left_point[0] + right_point[0]) / 2 - luft[0]
-    center_y = (upper_point[1] + bottom_point[1]) / 2 - luft[1]
+    # center_y = (left_point[1] + right_point[1]) / 2 - luft[1]
+    # center_x = (upper_point[0] + bottom_point[0]) / 2 - luft[0]
+    center_y = (upper_point[1] + bottom_point[1]) / 2
+    center_x = (upper_point[0] + bottom_point[0]) / 2
+
+    radius = 3
+
+    color = (255, 0, 255)
+
+    thickness = -1
+    cv2.circle(image, (int(center_x), int(center_y)), radius, color, thickness)
+    color = (255, 255, 255)
+    cv2.circle(image, (int(iris_center[0]), int(
+        iris_center[1])), radius, color, thickness)
 
     difference_x = center_x - iris_center[0]
     difference_y = center_y - iris_center[1]
@@ -719,7 +768,8 @@ def find_ls(landmarks: list, image: np.ndarray) -> list:
     Returns:
         list: distances from the "middle" eye's center to its top, bottom, left and right corners"""
     # find "middle_eye" by getting the average of 5 points on left and right eyes
-    eye_center, right_point, left_point, bottom_point, upper_point = find_points(landmarks, image)
+    eye_center, right_point, left_point, bottom_point, upper_point = find_points(
+        landmarks, image)
 
     # Calculate distances
     l1 = math.dist(upper_point, eye_center)
@@ -728,6 +778,7 @@ def find_ls(landmarks: list, image: np.ndarray) -> list:
     l4 = math.dist(right_point, eye_center)
 
     return [l1, l2, l3, l4]
+
 
 def find_points(landmarks: list, image: np.ndarray) -> list:
     """This function calculates distances from the "middle" eye's center to its top, bottom, left and right corners
@@ -739,14 +790,14 @@ def find_points(landmarks: list, image: np.ndarray) -> list:
     # find "middle_eye" by getting the average of 5 points on left and right eyes
     eye_center = ((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
                   (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0])
-    right_point = ((landmarks[226].x + landmarks[464].x) / 2 * image.shape[1],
-                   (landmarks[226].y + landmarks[464].y) / 2 * image.shape[0])
-    left_point = ((landmarks[244].x + landmarks[446].x) / 2 * image.shape[1],
-                  (landmarks[244].y + landmarks[446].y) / 2 * image.shape[0])
-    bottom_point = ((landmarks[230].x + landmarks[450].x) / 2 * image.shape[1],
-                    (landmarks[230].y + landmarks[450].y) / 2 * image.shape[0])
-    upper_point = ((landmarks[222].x + landmarks[443].x) / 2 * image.shape[1],
-                   (landmarks[222].y + landmarks[443].y) / 2 * image.shape[0])
+    right_point = ((landmarks[35].x + landmarks[464].x) / 2 * image.shape[1],
+                   (landmarks[35].y + landmarks[464].y) / 2 * image.shape[0])
+    left_point = ((landmarks[245].x + landmarks[265].x) / 2 * image.shape[1],
+                  (landmarks[245].y + landmarks[265].y) / 2 * image.shape[0])
+    bottom_point = ((landmarks[119].x + landmarks[348].x) / 2 * image.shape[1],
+                    (landmarks[119].y + landmarks[348].y) / 2 * image.shape[0])
+    upper_point = ((landmarks[65].x + landmarks[295].x) / 2 * image.shape[1],
+                   (landmarks[65].y + landmarks[295].y) / 2 * image.shape[0])
 
     return eye_center, right_point, left_point, bottom_point, upper_point
 

@@ -72,9 +72,9 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                                                                                                                     image)
 
                             luft_x = (
-                                left_point[0] + right_point[0]) / 2 - eye_center[0]
+                                upper_point[0] + bottom_point[0]) / 2 - eye_center[0]
                             luft_y = (
-                                upper_point[1] + bottom_point[1]) / 2 - eye_center[1]
+                                right_point[1] + left_point[1]) / 2 - eye_center[1]
                             luft = (luft_x, luft_y)
                         distances.append(mp_drawing.find_distance(
                             results.multi_face_landmarks[0], image))
@@ -100,11 +100,13 @@ cap = cv2.VideoCapture(0)
 w = int(cap.get(3))
 h = int(cap.get(4))
 
-writer = cv2.VideoWriter(
-    './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+# writer = cv2.VideoWriter(
+#     './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
 
 eye_image_dimensions, distance, luft, eye_center = calibration(
     cap, mp_face_mesh, mp_drawing)
+
+print(eye_image_dimensions)
 
 previous_result = (640, 360)
 
@@ -131,22 +133,22 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                # previous_result = mp_drawing.gaze_tracking(previous_result, distance,
-                #                                            eye_image_dimensions,
-                #                                            image=image,
-                #                                            landmark_list=face_landmarks, center=eye_center,
-                #                                            type='contour', luft=luft)
-                mp_drawing.draw_iris_landmarks(image, face_landmarks)
+                previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+                                                           eye_image_dimensions,
+                                                           image=image,
+                                                           landmark_list=face_landmarks, center=eye_center,
+                                                           type='contour', luft=luft)
+                # mp_drawing.draw_iris_landmarks(image, face_landmarks)
         # Flip the image horizontally for a selfie-view display.
-        writer.write(image)
+        # writer.write(image)
         cv2.imshow('MediaPipe Face Mesh', image)
 
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            eye_image_dimensions, distance, luft = calibration(
+            eye_image_dimensions, distance, luft, eye_center = calibration(
                 cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
 cap.release()
-writer.release()
+# writer.release()

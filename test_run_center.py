@@ -17,6 +17,7 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
          center point, distance from the user to the camera"""
     points = []
     distances = []
+    check_points = None
 
     #Center, left, right, up, down
     factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
@@ -68,11 +69,11 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                         min_tracking_confidence=0.5) as face_mesh:
                     results = face_mesh.process(image)
                     if results.multi_face_landmarks:
-                        landmarks = results.multi_face_landmarks[0].landmark
-                        points.append(((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
-                                       (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
+                        points.append(mp_drawing.find_iris_center(results.multi_face_landmarks[0], image))
                         distances.append(mp_drawing.find_distance(
                             results.multi_face_landmarks[0], image))
+                        if check_points == None:
+                            check_points = mp_drawing.find_check_coordinates(results.multi_face_landmarks[0], image)
                         break
             elif pressedKey == 27:
                 cap.release()
@@ -81,7 +82,7 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
     eye_image_height = points[4][1] - points[3][1]
     eye_image_width = points[2][0] - points[1][0]
 
-    return ((eye_image_width, eye_image_height), points[0], mean(distances))
+    return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances), check_points)
 
 
 mp_drawing = custom_drawing_utils
@@ -90,8 +91,13 @@ mp_face_mesh = mp.solutions.face_mesh
 previous_result = (640, 360)
 
 cap = cv2.VideoCapture(0)
+w = int(cap.get(3))
+h = int(cap.get(4))
 
-eye_image_dimensions, eye_center, distance = calibration(
+writer = cv2.VideoWriter(
+    './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+
+eye_image_dimensions, eye_center, distance, check_points = calibration(
     cap, mp_face_mesh, mp_drawing)
 
 # used to record the time when we processed last frame
@@ -140,16 +146,18 @@ with mp_face_mesh.FaceMesh(
                                                                         eye_image_dimensions,
                                                                         image=image,
                                                                         landmark_list=face_landmarks,
+                                                                        check_points=check_points,
                                                                         center=eye_center,
                                                                         type='center')
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
-
+        writer.write(image)
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            eye_image_dimensions, eye_center, distance = calibration(
+            eye_image_dimensions, eye_center, distance, check_points = calibration(
                 cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
 cap.release()
+writer.release()
