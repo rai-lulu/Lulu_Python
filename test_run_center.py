@@ -17,7 +17,6 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
          center point, distance from the user to the camera"""
     points = []
     distances = []
-    check_points = None
 
     #Center, left, right, up, down
     factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
@@ -72,8 +71,6 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                         points.append(mp_drawing.find_iris_center(results.multi_face_landmarks[0], image))
                         distances.append(mp_drawing.find_distance(
                             results.multi_face_landmarks[0], image))
-                        if check_points == None:
-                            check_points = mp_drawing.find_check_coordinates(results.multi_face_landmarks[0], image)
                         break
             elif pressedKey == 27:
                 cap.release()
@@ -82,22 +79,26 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
     eye_image_height = points[4][1] - points[3][1]
     eye_image_width = points[2][0] - points[1][0]
 
-    return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances), check_points)
+    return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances))
 
 
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
 
 previous_result = (640, 360)
+previous_var = 1
+previous_time = 0
 
 cap = cv2.VideoCapture(0)
-w = int(cap.get(3))
-h = int(cap.get(4))
 
-writer = cv2.VideoWriter(
-    './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+#Uncomment for recording a video everything needed for writer 
+# w = int(cap.get(3))
+# h = int(cap.get(4))
 
-eye_image_dimensions, eye_center, distance, check_points = calibration(
+# writer = cv2.VideoWriter(
+#     './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
+
+eye_image_dimensions, eye_center, distance = calibration(
     cap, mp_face_mesh, mp_drawing)
 
 # used to record the time when we processed last frame
@@ -142,22 +143,21 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+                previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
                                                                         eye_image_dimensions,
                                                                         image=image,
                                                                         landmark_list=face_landmarks,
-                                                                        check_points=check_points,
                                                                         center=eye_center,
                                                                         type='center')
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
-        writer.write(image)
+        # writer.write(image)
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            eye_image_dimensions, eye_center, distance, check_points = calibration(
+            eye_image_dimensions, eye_center, distance = calibration(
                 cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
 cap.release()
-writer.release()
+# writer.release()
