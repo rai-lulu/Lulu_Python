@@ -67,7 +67,8 @@ def catch_frame(data):
     emit('response_back', data)
 
 
-global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result
+global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
+     previous_var, previous_time
 fps = 30
 prev_recv_time = 0
 cnt = 0
@@ -78,6 +79,9 @@ points = []
 distances = []
 eye_image_dimensions = None
 previous_result = (640, 360)
+previous_var = 1
+previous_time = 0
+
 
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
@@ -134,7 +138,7 @@ def calibration_image(data_image):
                 raise Exception
             eye_image_dimensions = (eye_image_width, eye_image_height)
             distance = mean(distances)
-            eye_center = points[0]
+            eye_center = (int(points[0][0]), int(points[0][1]))
             points = []
             distances = []
 
@@ -240,14 +244,14 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
         frame: image to be processed
     Returns:
         frame: processed image"""
-    global previous_result, eye_center, eye_image_dimensions, distance
+    global previous_result, previous_time, previous_var, eye_center, eye_image_dimensions, distance
     frame.flags.writeable = False
     frame = cv2.flip(frame, 1)
     results = face_mesh.process(frame)
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            previous_result = mp_drawing.gaze_tracking(previous_result, distance,
+            previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
                                                                     eye_image_dimensions,
                                                                     image=frame,
                                                                     landmark_list=face_landmarks,

@@ -2,3 +2,12 @@ opencv-python
 matplotlib
 numpy
 mediapipe 
+tensorflow
+keras
+#for web application
+flask
+flask-socketio
+pyshine
+sounddevice
+soundfile
+eventlet
