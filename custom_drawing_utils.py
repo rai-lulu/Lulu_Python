@@ -571,6 +571,9 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
     curr_var = None
     curr_time = previous_time
     counter = 1
+    print(image.shape)
+    print(w_step)
+    print(h_step)
 
     for w in range(0, image.shape[1], w_step):
         for h in range(0, image.shape[0], h_step):
@@ -590,6 +593,10 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
                 continue
             cv2.rectangle(image, start_coord, end_coord, WHITE_COLOR, 3)
             counter += 1
+            if counter == 17:
+                break
+        if counter == 17:
+            break
 
     cv2.rectangle(image, choosen_rect_coord_st, choosen_rect_coord_end, GREEN_COLOR, 3)
 

@@ -6,8 +6,10 @@ tensorflow
 keras
 #for web application
 flask
-flask-socketio
 pyshine
 sounddevice
 soundfile
 eventlet
+python-socketio==4.6.0
+python-engineio==3.13.2
+Flask-SocketIO==4.3.1
