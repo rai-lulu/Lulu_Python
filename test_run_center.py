@@ -143,7 +143,7 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
+                image, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
                                                                         eye_image_dimensions,
                                                                         image=image,
                                                                         landmark_list=face_landmarks,

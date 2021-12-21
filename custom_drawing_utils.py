@@ -504,9 +504,25 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
         iris_drawing_color: irises' drawing color
     Returns:
         tuple: center_coordinates to be used as previous_result for the next frame 
+        int: curr_var to be used as previous_var for the next frame
+        int: curr_time to be used as previous_time for the next frame 
+        np.ndarray: image processed
     """
 
     curr_distance = find_distance(landmark_list, image)
+
+    w = image.shape[1]
+    h = image.shape[0]
+
+    closest_w = int(4 * np.round(w / 4.))
+    dw = w - closest_w
+    w_steps = [w // 4] * 3 + [w // 4 + dw]
+
+    closest_h = int(4 * np.round(h / 4.))
+    dh = h - closest_h
+    h_steps = [h // 4] * 3 + [h // 4 + dh]
+
+
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     bottomLeftCornerOfText = (10, 500)
@@ -562,9 +578,6 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
 
     cv2.circle(image, center_coordinates, radius, RED_COLOR, thickness)
 
-    w_step = int(image.shape[1] / 4)
-    h_step = int(image.shape[0] / 4)
-
     #Parameters used whene deciding whether the user has chosen some variant
     choosen_rect_coord_st = None
     choosen_rect_coord_end = None
@@ -572,10 +585,10 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
     curr_time = previous_time
     counter = 1
 
-    for w in range(0, image.shape[1], w_step):
-        for h in range(0, image.shape[0], h_step):
-            start_coord = (w, h)
-            end_coord = (w+w_step, h+h_step)
+    for i, w in enumerate(w_steps):
+        for j, h in enumerate(h_steps):
+            start_coord = (i * w_steps[0], j * h_steps[0])
+            end_coord = (start_coord[0] + w, start_coord[1] + h)
             if end_coord[0] >= center_coordinates[0] and end_coord[1] >= center_coordinates[1] \
                 and start_coord[0] <= center_coordinates[0] and start_coord[1] <= center_coordinates[1]:
                 choosen_rect_coord_st = start_coord
@@ -583,7 +596,7 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
                 curr_var = counter 
                 if curr_var != previous_var:
                     curr_time = time.time()
-                elif time.time() - previous_time > 5:
+                elif time.time() - previous_time > 2:
                     print('Variant chosen: ' + str(curr_var))
                     curr_time = time.time()
                 counter += 1
@@ -618,7 +631,7 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
         cv2.circle(image, landmark_px, 2,
                    iris_drawing_color, 1)
 
-    return center_coordinates, curr_var, curr_time
+    return image, center_coordinates, curr_var, curr_time
 
 
 def find_iris_center(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> tuple:

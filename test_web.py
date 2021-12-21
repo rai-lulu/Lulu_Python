@@ -106,6 +106,7 @@ def calibration_image(data_image):
     global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions
 
     if prev_time == 0:
+        counter = 0
         prev_time = time.time()
     
     curr_time = time.time()
@@ -146,6 +147,8 @@ def calibration_image(data_image):
 
         except:
             print("EXCEPTION OCCURED!!!!!")
+            print(eye_image_height)
+            print(eye_image_width)
             emit('redirect', {'url': url_for('index')})
 
 
@@ -251,7 +254,7 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
+           frame, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
                                                                     eye_image_dimensions,
                                                                     image=frame,
                                                                     landmark_list=face_landmarks,
