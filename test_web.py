@@ -33,6 +33,8 @@ def index():
 
 @app.route('/calibration', methods=['POST', 'GET'])
 def calibration():
+    global flag
+    flag = False
     return render_template('calibration.html')
 
 
@@ -68,7 +70,7 @@ def catch_frame(data):
 
 
 global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
-     previous_var, previous_time
+     previous_var, previous_time, flag
 fps = 30
 prev_recv_time = 0
 cnt = 0
@@ -81,6 +83,7 @@ eye_image_dimensions = None
 previous_result = (640, 360)
 previous_var = 1
 previous_time = 0
+flag = True
 
 
 mp_drawing = custom_drawing_utils
@@ -103,7 +106,10 @@ def calibration_image(data_image):
     """This function emits image during calibration
     Args:
         data_image: image from webcam"""
-    global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions
+    global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions, flag
+
+    if flag:
+        return
 
     if prev_time == 0:
         counter = 0
@@ -147,6 +153,7 @@ def calibration_image(data_image):
 
         except:
             print("EXCEPTION OCCURED!!!!!")
+            flag = True
             emit('redirect', {'url': url_for('index')})
 
 
