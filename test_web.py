@@ -147,8 +147,6 @@ def calibration_image(data_image):
 
         except:
             print("EXCEPTION OCCURED!!!!!")
-            print(eye_image_height)
-            print(eye_image_width)
             emit('redirect', {'url': url_for('index')})
 
 
