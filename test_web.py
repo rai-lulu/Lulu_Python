@@ -42,6 +42,7 @@ def calibration():
 def tracking():
     return render_template('tracking.html')
 
+
 @app.errorhandler(Exception)
 def request_entity_too_large(error):
     return render_template('index.html')
@@ -70,7 +71,7 @@ def catch_frame(data):
 
 
 global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
-     previous_var, previous_time, flag
+    previous_var, previous_time, flag
 fps = 30
 prev_recv_time = 0
 cnt = 0
@@ -101,6 +102,13 @@ prev_time = 0
 factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 counter = 0
 
+
+@socketio.on('image_calibration_rear')
+def calibration_image_rear(data_image):
+    frame = (readb64(data_image))
+    cv2.imwrite('image_rear.jpg', frame)
+
+
 @socketio.on('image_calibration')
 def calibration_image(data_image):
     """This function emits image during calibration
@@ -114,17 +122,17 @@ def calibration_image(data_image):
     if prev_time == 0:
         counter = 0
         prev_time = time.time()
-    
+
     curr_time = time.time()
     difference = curr_time - prev_time
 
     frame = (readb64(data_image))
+    cv2.imwrite('image_front.jpg', frame)
 
     frame = cv2.flip(frame, 1)
     frame = draw_calibraion(frame, factors[counter])
 
-
-    #Time interval between calibration points
+    # Time interval between calibration points
     if difference >= 4:
         counter += 1
         prev_time = curr_time
@@ -132,13 +140,13 @@ def calibration_image(data_image):
         if results.multi_face_landmarks:
             landmarks = results.multi_face_landmarks[0].landmark
             points.append(((landmarks[473].x + landmarks[468].x) / 2 * frame.shape[1],
-                            (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
+                           (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
             distances.append(mp_drawing.find_distance(
                 results.multi_face_landmarks[0], frame))
     if counter == 5:
         counter = 0
         prev_time = 0
-        try:        
+        try:
             eye_image_height = points[4][1] - points[3][1]
             eye_image_width = points[2][0] - points[1][0]
             if eye_image_height < 0 or eye_image_width < 0:
@@ -156,7 +164,6 @@ def calibration_image(data_image):
             flag = True
             emit('redirect', {'url': url_for('index')})
 
-
     print(counter)
     imgencode = cv2.imencode(
         '.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
@@ -172,7 +179,6 @@ def calibration_image(data_image):
     cnt += 1
     if cnt == 30:
         cnt = 0
-
 
 
 def draw_calibraion(image: np.ndarray, factor: tuple) -> np.ndarray:
@@ -259,12 +265,12 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-           frame, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
-                                                                    eye_image_dimensions,
-                                                                    image=frame,
-                                                                    landmark_list=face_landmarks,
-                                                                    center=eye_center,
-                                                                    type='center')
+            frame, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var,
+                                                                                           previous_time, distance,
+                                                                                           eye_center,
+                                                                                           eye_image_dimensions,
+                                                                                           image=frame,
+                                                                                           landmark_list=face_landmarks)
 
     return frame
 

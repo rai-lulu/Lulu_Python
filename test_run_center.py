@@ -56,7 +56,8 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
             color = (0, 0, 255)
 
             thickness = -1
-            cv2.circle(annotated_image, center_coordinates, radius, color, thickness)
+            cv2.circle(annotated_image, center_coordinates,
+                       radius, color, thickness)
 
             cv2.imshow('MediaPipe Face Mesh', annotated_image)
             pressedKey = cv2.waitKey(1) & 0xFF
@@ -68,7 +69,8 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                         min_tracking_confidence=0.5) as face_mesh:
                     results = face_mesh.process(image)
                     if results.multi_face_landmarks:
-                        points.append(mp_drawing.find_iris_center(results.multi_face_landmarks[0], image))
+                        points.append(mp_drawing.find_iris_center(
+                            results.multi_face_landmarks[0], image))
                         distances.append(mp_drawing.find_distance(
                             results.multi_face_landmarks[0], image))
                         break
@@ -91,7 +93,7 @@ previous_time = 0
 
 cap = cv2.VideoCapture(0)
 
-#Uncomment for recording a video everything needed for writer 
+# Uncomment for recording a video everything needed for writer
 # w = int(cap.get(3))
 # h = int(cap.get(4))
 
@@ -143,12 +145,12 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                image, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var, previous_time, distance,
-                                                                        eye_image_dimensions,
-                                                                        image=image,
-                                                                        landmark_list=face_landmarks,
-                                                                        center=eye_center,
-                                                                        type='center')
+                image, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var,
+                                                                                               previous_time, distance,
+                                                                                               eye_center,
+                                                                                               eye_image_dimensions,
+                                                                                               image=image,
+                                                                                               landmark_list=face_landmarks)
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
         # writer.write(image)

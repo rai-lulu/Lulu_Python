@@ -422,9 +422,10 @@ def draw_iris_landmarks(
                    iris_drawing_color, 1)
 
 
-def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: float, distance: float, eye_image_dimensions: tuple,
+def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: float, distance: float, center: tuple,
+                  eye_image_dimensions: tuple,
                   image: np.ndarray,
-                  landmark_list: landmark_pb2.NormalizedLandmarkList, center=None, type=None, luft=None,
+                  landmark_list: landmark_pb2.NormalizedLandmarkList,
                   eye_key_indicies=[
         # Left eye
         # eye lower contour
@@ -491,22 +492,21 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
     Args:
         previous_result: center_coordinates of the previous frame
         previous_var: variant selected on the previous frame 
-        time_spent: time the user is looking at previous_var
+        previous_time: time the user is looking at previous_var
         distance: initial distance from calibration
         center: position of user's "middle" eye when looking at the center of the screen from calibration
         eye_image_dimensions: width and height of the reactangle where user's eyes moved during calibration
         image: image to be processed
         landmark_list: A normalized landmark list proto message to be plotted.
-        type: method used to find center coordinates of the point on the screen
         eye_key_indicies: indices of eyes' contours
         iris_key_indices: indices of irises' points
         eye_drawing_color: color of eyes' contours
         iris_drawing_color: irises' drawing color
     Returns:
+        np.ndarray: image processed
         tuple: center_coordinates to be used as previous_result for the next frame 
         int: curr_var to be used as previous_var for the next frame
         int: curr_time to be used as previous_time for the next frame 
-        np.ndarray: image processed
     """
 
     curr_distance = find_distance(landmark_list, image)
@@ -514,15 +514,15 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
     w = image.shape[1]
     h = image.shape[0]
 
+    #Find width for each rectangle
     closest_w = int(4 * np.round(w / 4.))
     dw = w - closest_w
     w_steps = [w // 4] * 3 + [w // 4 + dw]
 
+    #Find height for each rectangle 
     closest_h = int(4 * np.round(h / 4.))
     dh = h - closest_h
     h_steps = [h // 4] * 3 + [h // 4 + dh]
-
-
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     bottomLeftCornerOfText = (10, 500)
@@ -539,46 +539,38 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
                 thickness,
                 lineType)
 
+    #Time used for testing variant selection
     cv2.putText(image, 'Time = ' + str(time.time() - previous_time),
-            (500, 50),
-            font,
-            fontScale,
-            fontColor,
-            thickness,
-            lineType)
+                (500, 50),
+                font,
+                fontScale,
+                fontColor,
+                thickness,
+                lineType)
 
     # Current position of the center of user's "middle" eye
-    eye_center, right_point, left_point, bottom_point, upper_point = find_points(
-        landmark_list, image)
+    eye_center = find_iris_center(landmark_list, image)
 
-    # Center coordinates of the point on the screen where the user is looking
-    if type == 'center':
-        center_coordinates = find_center_coordinates(image, previous_result,
-                                                     distance, curr_distance, center, eye_image_dimensions, eye_center)
-    elif type == 'contour':
-        center_coordinates = find_center_coordinates_enhanced(image, previous_result,
-                                                              distance, curr_distance,
-                                                              eye_image_dimensions, upper_point, left_point, bottom_point,
-                                                              right_point, eye_center, center
-                                                              )
-    else:
-        raise ValueError('Unknown gaze_tracking type.')
+    #Current center coordinates of the point on the screen the user is looking at
+    center_coordinates = find_center_coordinates(image, previous_result,
+                                                 distance, curr_distance, center, eye_image_dimensions, eye_center)
 
     radius = 5
 
     thickness = -1
-    # Current eye_center
+    #Plot current eye_center on the image
     cv2.circle(image, (int(eye_center[0]), int(
         eye_center[1])), radius, BLACK_COLOR, thickness)
 
-    # Eye_center from calibration
+    #Plot eye_center from calibration on the image
     cv2.circle(image, center, radius, WHITE_COLOR, thickness)
 
     radius = 50
 
+    #Plot a circle on the screen that will indicate the area the user is looking at
     cv2.circle(image, center_coordinates, radius, RED_COLOR, thickness)
 
-    #Parameters used whene deciding whether the user has chosen some variant
+    # Parameters used when deciding whether the user has chosen a variant
     choosen_rect_coord_st = None
     choosen_rect_coord_end = None
     curr_var = None
@@ -590,10 +582,10 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
             start_coord = (i * w_steps[0], j * h_steps[0])
             end_coord = (start_coord[0] + w, start_coord[1] + h)
             if end_coord[0] >= center_coordinates[0] and end_coord[1] >= center_coordinates[1] \
-                and start_coord[0] <= center_coordinates[0] and start_coord[1] <= center_coordinates[1]:
+                    and start_coord[0] <= center_coordinates[0] and start_coord[1] <= center_coordinates[1]:
                 choosen_rect_coord_st = start_coord
                 choosen_rect_coord_end = end_coord
-                curr_var = counter 
+                curr_var = counter
                 if curr_var != previous_var:
                     curr_time = time.time()
                 elif time.time() - previous_time > 2:
@@ -604,7 +596,9 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
             cv2.rectangle(image, start_coord, end_coord, WHITE_COLOR, 3)
             counter += 1
 
-    cv2.rectangle(image, choosen_rect_coord_st, choosen_rect_coord_end, GREEN_COLOR, 3)
+    #Plot currently chosen rectangle in GREEN
+    cv2.rectangle(image, choosen_rect_coord_st,
+                  choosen_rect_coord_end, GREEN_COLOR, 3)
 
     if not landmark_list:
         return
@@ -654,6 +648,7 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
         image: current frame 
     Returns:
         float: calculated distance"""
+    # Experimentally measured focal_length, for each device it should be measured separately 
     focal_length = 1150  # pixels
     iris_length = 11.7  # mm
     iris_length_pixels_left = math.sqrt(((landmark_list.landmark[469].x - landmark_list.landmark[471].x) * image.shape[1]) ** 2
@@ -669,7 +664,8 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
 def find_center_coordinates_enhanced(image: np.ndarray, previous_result: tuple, distance: float, curr_distance: float,
                                      eye_image_dimensions: tuple, upper_point: tuple, left_point: tuple, bottom_point: tuple,
                                      right_point: tuple, iris_center: tuple) -> tuple:
-    """This function calculated center coordinates of the point on the screen where the user is looking
+    """TEST FUNCTION
+    This function calculated center coordinates of the point on the screen where the user is looking
     Args:
         image: image to be processed 
         previous_result: center_coordinates of the previous frame
@@ -758,11 +754,6 @@ def find_center_coordinates(image: np.ndarray, previous_result: tuple, distance:
     # Smoothing parameter
     gamma = 0.9
 
-    # desktop parameters
-    # screen_center = (640, 360)
-    # w = 1280
-    # h = 720
-
     w = image.shape[1]
     h = image.shape[0]
     screen_center = (w/2, h/2)
@@ -792,7 +783,6 @@ def find_center_coordinates(image: np.ndarray, previous_result: tuple, distance:
         result_y = h
 
     result = (int(result_x), int(result_y))
-    #previous_result = result
     # print('difference: ' + str(difference_x) + '   ' + str(difference_y))
     # print('shift: ' + str(x_shift) + '   ' + str(y_shift))
     # print('result: ' + str(result))
@@ -842,8 +832,8 @@ def find_points(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.nd
 
 
 def find_coordinates(distance: float, point: tuple) -> tuple:
-    """This function calculated center coordinates of the point on the screen where the user is looking
-    TEST FUNCTION
+    """TEST FUNCTION
+    This function calculated center coordinates of the point on the screen where the user is looking
     Args:
         distance: distance from user's eyes to the camera from calibration
         point: current position of user's eyes
