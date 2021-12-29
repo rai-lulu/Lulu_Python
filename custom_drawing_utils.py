@@ -1,19 +1,3 @@
-# Copyright 2020 The MediaPipe Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""MediaPipe solution drawing utils."""
-
 import math
 from typing import List, Mapping, Optional, Tuple, Union
 
@@ -422,8 +406,8 @@ def draw_iris_landmarks(
                    iris_drawing_color, 1)
 
 
-def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: float, distance: float, center: tuple,
-                  eye_image_dimensions: tuple,
+def tracking(type_used: str, previous_result: tuple, previous_var: int, previous_time: float, distance: float, center: tuple,
+                  image_dimensions: tuple,
                   image: np.ndarray,
                   landmark_list: landmark_pb2.NormalizedLandmarkList,
                   eye_key_indicies=[
@@ -495,7 +479,7 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
         previous_time: time the user is looking at previous_var
         distance: initial distance from calibration
         center: position of user's "middle" eye when looking at the center of the screen from calibration
-        eye_image_dimensions: width and height of the reactangle where user's eyes moved during calibration
+        image_dimensions: width and height of the reactangle where user's eyes moved during calibration
         image: image to be processed
         landmark_list: A normalized landmark list proto message to be plotted.
         eye_key_indicies: indices of eyes' contours
@@ -514,12 +498,12 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
     w = image.shape[1]
     h = image.shape[0]
 
-    #Find width for each rectangle
+    # Find width for each rectangle
     closest_w = int(4 * np.round(w / 4.))
     dw = w - closest_w
     w_steps = [w // 4] * 3 + [w // 4 + dw]
 
-    #Find height for each rectangle 
+    # Find height for each rectangle
     closest_h = int(4 * np.round(h / 4.))
     dh = h - closest_h
     h_steps = [h // 4] * 3 + [h // 4 + dh]
@@ -539,7 +523,7 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
                 thickness,
                 lineType)
 
-    #Time used for testing variant selection
+    # Time used for testing variant selection
     cv2.putText(image, 'Time = ' + str(time.time() - previous_time),
                 (500, 50),
                 font,
@@ -548,26 +532,35 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
                 thickness,
                 lineType)
 
-    # Current position of the center of user's "middle" eye
-    eye_center = find_iris_center(landmark_list, image)
+    if type_used == 'eye':
+        # Current position of the center of user's "middle" eye
+        center_for_calculations = find_iris_center(landmark_list, image)
 
-    #Current center coordinates of the point on the screen the user is looking at
-    center_coordinates = find_center_coordinates(image, previous_result,
-                                                 distance, curr_distance, center, eye_image_dimensions, eye_center)
+    elif type_used == 'nose':
+        center_for_calculations = find_nose_coord(landmark_list, image)
+
+    else:
+        print("Unknown tracking type")
+        raise SystemExit
 
     radius = 5
 
     thickness = -1
-    #Plot current eye_center on the image
-    cv2.circle(image, (int(eye_center[0]), int(
-        eye_center[1])), radius, BLACK_COLOR, thickness)
 
-    #Plot eye_center from calibration on the image
+    # Current center coordinates of the point on the screen the user is looking at
+    center_coordinates = find_center_coordinates(image, previous_result,
+                                                    distance, curr_distance, center, image_dimensions, center_for_calculations)
+
+    # Plot current eye_center on the image
+    cv2.circle(image, (center_for_calculations[0],
+        center_for_calculations[1]), radius, BLACK_COLOR, thickness)
+    
+    # Plot eye_center from calibration on the image
     cv2.circle(image, center, radius, WHITE_COLOR, thickness)
 
     radius = 50
 
-    #Plot a circle on the screen that will indicate the area the user is looking at
+    # Plot a circle on the screen that will indicate the area the user is looking at
     cv2.circle(image, center_coordinates, radius, RED_COLOR, thickness)
 
     # Parameters used when deciding whether the user has chosen a variant
@@ -596,36 +589,41 @@ def gaze_tracking(previous_result: tuple, previous_var: int, previous_time: floa
             cv2.rectangle(image, start_coord, end_coord, WHITE_COLOR, 3)
             counter += 1
 
-    #Plot currently chosen rectangle in GREEN
+    # Plot currently chosen rectangle in GREEN
     cv2.rectangle(image, choosen_rect_coord_st,
                   choosen_rect_coord_end, GREEN_COLOR, 3)
+    
+    if type_used == 'eye': 
+        if not landmark_list:
+            return
+        if image.shape[2] != _RGB_CHANNELS:
+            raise ValueError('Input image must contain three channel rgb data.')
+        image_rows, image_cols, _ = image.shape
+        idx_to_eye_coordinates = {}
+        idx_to_iris_coordinates = {}
+        for idx, landmark in enumerate(landmark_list.landmark):
 
-    if not landmark_list:
-        return
-    if image.shape[2] != _RGB_CHANNELS:
-        raise ValueError('Input image must contain three channel rgb data.')
-    image_rows, image_cols, _ = image.shape
-    idx_to_eye_coordinates = {}
-    idx_to_iris_coordinates = {}
-    for idx, landmark in enumerate(landmark_list.landmark):
+            landmark_px = _normalized_to_pixel_coordinates(landmark.x, landmark.y,
+                                                        image_cols, image_rows)
+            if landmark_px and idx in eye_key_indicies:
+                idx_to_eye_coordinates[idx] = landmark_px
 
-        landmark_px = _normalized_to_pixel_coordinates(landmark.x, landmark.y,
-                                                       image_cols, image_rows)
-        if landmark_px and idx in eye_key_indicies:
-            idx_to_eye_coordinates[idx] = landmark_px
+            elif landmark_px and idx in iris_key_indicies:
+                idx_to_iris_coordinates[idx] = landmark_px
 
-        elif landmark_px and idx in iris_key_indicies:
-            idx_to_iris_coordinates[idx] = landmark_px
+        for landmark_px in idx_to_eye_coordinates.values():
+            cv2.circle(image, landmark_px, 2,
+                    eye_drwing_color, 1)
 
-    for landmark_px in idx_to_eye_coordinates.values():
-        cv2.circle(image, landmark_px, 2,
-                   eye_drwing_color, 1)
-
-    for landmark_px in idx_to_iris_coordinates.values():
-        cv2.circle(image, landmark_px, 2,
-                   iris_drawing_color, 1)
+        for landmark_px in idx_to_iris_coordinates.values():
+            cv2.circle(image, landmark_px, 2,
+                    iris_drawing_color, 1)
 
     return image, center_coordinates, curr_var, curr_time
+
+
+def find_nose_coord(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> tuple:
+    return (int(landmark_list.landmark[1].x * image.shape[1]), int(landmark_list.landmark[1].y * image.shape[0]))
 
 
 def find_iris_center(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> tuple:
@@ -637,8 +635,8 @@ def find_iris_center(landmark_list: landmark_pb2.NormalizedLandmarkList, image: 
         tuple: calculated center coordinates"""
     landmarks = landmark_list.landmark
 
-    return ((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1],
-            (landmarks[473].y + landmarks[468].y) / 2 * image.shape[0])
+    return (int((landmarks[473].x + landmarks[468].x) / 2 * image.shape[1]),
+            int((landmarks[473].y + landmarks[468].y) / 2 * image.shape[0]))
 
 
 def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> float:
@@ -648,7 +646,7 @@ def find_distance(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.
         image: current frame 
     Returns:
         float: calculated distance"""
-    # Experimentally measured focal_length, for each device it should be measured separately 
+    # Experimentally measured focal_length, for each device it should be measured separately
     focal_length = 1150  # pixels
     iris_length = 11.7  # mm
     iris_length_pixels_left = math.sqrt(((landmark_list.landmark[469].x - landmark_list.landmark[471].x) * image.shape[1]) ** 2
@@ -738,7 +736,7 @@ def find_center_coordinates_enhanced(image: np.ndarray, previous_result: tuple, 
 
 
 def find_center_coordinates(image: np.ndarray, previous_result: tuple, distance: float, curr_distance: float, center: tuple,
-                            eye_image_dimensions: tuple, point: tuple) -> tuple:
+                            image_dimensions: tuple, point: tuple) -> tuple:
     """This function calculates center coordinates of the point on the screen where the user is looking
     Args:
         image: image to be processed 
@@ -764,8 +762,8 @@ def find_center_coordinates(image: np.ndarray, previous_result: tuple, distance:
     factor = curr_distance / distance
     #factor = 1
 
-    y_shift = difference_y * h / eye_image_dimensions[1] * factor
-    x_shift = difference_x * w / eye_image_dimensions[0] * factor
+    y_shift = difference_y * h / image_dimensions[1] * factor
+    x_shift = difference_x * w / image_dimensions[0] * factor
 
     result_x = (screen_center[0] - x_shift) * \
         (1 - gamma) + previous_result[0] * gamma

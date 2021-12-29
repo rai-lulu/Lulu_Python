@@ -4,9 +4,10 @@ from statistics import mean
 import time
 from numpy.lib.twodim_base import eye
 import custom_drawing_utils
+import numpy as np
 
 
-def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_drawing: custom_drawing_utils) -> tuple:
+def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_drawing: custom_drawing_utils) -> tuple:
     """This function performs calibration
     Args:
         cap: videoCapturing object
@@ -14,7 +15,7 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
         mp_drawing: object for plotting
     Returns:
         tuple: width and height of the reactangle where user's eyes moved during calibration,
-         center point, distance from the user to the camera"""
+        center point, distance from the user to the camera"""
     points = []
     distances = []
 
@@ -69,6 +70,8 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
                         min_tracking_confidence=0.5) as face_mesh:
                     results = face_mesh.process(image)
                     if results.multi_face_landmarks:
+                        if type_used == 'nose':
+                            return ((100, 50), (mp_drawing.find_nose_coord(results.multi_face_landmarks[0], image)), 45)
                         points.append(mp_drawing.find_iris_center(
                             results.multi_face_landmarks[0], image))
                         distances.append(mp_drawing.find_distance(
@@ -84,30 +87,49 @@ def calibration(cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_
     return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances))
 
 
+while True:
+    image = np.zeros((500, 1000))
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (10, 30)
+    fontScale = 1
+    fontColor = (255, 255, 255)
+    thickness = 1
+    lineType = 2
+
+    cv2.putText(image, 'Please, press a for eye tracking and b for nose tracking',
+                bottomLeftCornerOfText,
+                font,
+                fontScale,
+                fontColor,
+                thickness,
+                lineType)
+    cv2.imshow('Choose your variant', image)
+    pressedKey = cv2.waitKey(1) & 0xFF
+    if pressedKey == ord('a'):
+        type_used = 'eye'
+        cv2.destroyAllWindows()
+        break
+    elif pressedKey == ord('b'):
+        type_used = 'nose'
+        cv2.destroyAllWindows()
+        break
+    elif pressedKey == 27:
+        raise SystemExit
+
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
-
+cap = cv2.VideoCapture(0)
 previous_result = (640, 360)
 previous_var = 1
 previous_time = 0
-
-cap = cv2.VideoCapture(0)
-
-# Uncomment for recording a video everything needed for writer
-# w = int(cap.get(3))
-# h = int(cap.get(4))
-
-# writer = cv2.VideoWriter(
-#     './video_test.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 25, (w, h))
-
-eye_image_dimensions, eye_center, distance = calibration(
-    cap, mp_face_mesh, mp_drawing)
-
 # used to record the time when we processed last frame
 prev_frame_time = 0
 
 # used to record the time at which we processed current frame
 new_frame_time = 0
+
+image_dimensions, center_for_calculations, distance = calibration(type_used,
+                                                                  cap, mp_face_mesh, mp_drawing)
 
 with mp_face_mesh.FaceMesh(
         max_num_faces=1,
@@ -126,7 +148,7 @@ with mp_face_mesh.FaceMesh(
 
         # Calculating the fps
 
-        fps = 1/(new_frame_time-prev_frame_time)
+        fps = 1 / (new_frame_time-prev_frame_time)
         prev_frame_time = new_frame_time
 
         fps = str(int(fps))
@@ -145,21 +167,20 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
-                image, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var,
+                image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
                                                                                                previous_time, distance,
-                                                                                               eye_center,
-                                                                                               eye_image_dimensions,
+                                                                                               center_for_calculations,
+                                                                                               image_dimensions,
                                                                                                image=image,
                                                                                                landmark_list=face_landmarks)
+
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
-        # writer.write(image)
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            eye_image_dimensions, eye_center, distance = calibration(
+            image_dimensions, center_for_calculations, distance = calibration(type_used,
                 cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
 cap.release()
-# writer.release()
