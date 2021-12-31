@@ -31,9 +31,18 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/calibration', methods=['POST', 'GET'])
-def calibration():
-    global flag
+@app.route('/calibration_gaze', methods=['POST', 'GET'])
+def calibration_gaze():
+    global flag, type_used
+    type_used = 'eye'
+    flag = False
+    return render_template('calibration.html')
+
+
+@app.route('/calibration_nose', methods=['POST', 'GET'])
+def calibration_nose():
+    global flag, type_used
+    type_used = 'nose'
     flag = False
     return render_template('calibration.html')
 
@@ -71,7 +80,7 @@ def catch_frame(data):
 
 
 global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
-    previous_var, previous_time, flag
+    previous_var, previous_time, flag, type_used
 fps = 30
 prev_recv_time = 0
 cnt = 0
@@ -85,6 +94,7 @@ previous_result = (640, 360)
 previous_var = 1
 previous_time = 0
 flag = True
+type_used = None
 
 
 mp_drawing = custom_drawing_utils
@@ -103,18 +113,12 @@ factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 counter = 0
 
 
-@socketio.on('image_calibration_rear')
-def calibration_image_rear(data_image):
-    frame = (readb64(data_image))
-    cv2.imwrite('image_rear.jpg', frame)
-
-
 @socketio.on('image_calibration')
 def calibration_image(data_image):
     """This function emits image during calibration
     Args:
         data_image: image from webcam"""
-    global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions, flag
+    global cnt, prev_time, factors, counter, eye_center, distance, points, distances, eye_image_dimensions, flag, type_used
 
     if flag:
         return
@@ -127,7 +131,6 @@ def calibration_image(data_image):
     difference = curr_time - prev_time
 
     frame = (readb64(data_image))
-    cv2.imwrite('image_front.jpg', frame)
 
     frame = cv2.flip(frame, 1)
     frame = draw_calibraion(frame, factors[counter])
@@ -138,6 +141,21 @@ def calibration_image(data_image):
         prev_time = curr_time
         results = face_mesh.process(frame)
         if results.multi_face_landmarks:
+            if type_used == 'nose':
+                try:
+                    eye_image_dimensions = (100, 50)
+                    distance = 45
+                    eye_center = mp_drawing.find_nose_coord(
+                        results.multi_face_landmarks[0], frame)
+                    counter = 0
+                    prev_time = 0
+                    flag = True
+                    emit('redirect', {'url': url_for('tracking')})
+                except:
+                    print("EXCEPTION OCCURED!!!!!")
+                    flag = True
+                    emit('redirect', {'url': url_for('index')})
+
             landmarks = results.multi_face_landmarks[0].landmark
             points.append(((landmarks[473].x + landmarks[468].x) / 2 * frame.shape[1],
                            (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
@@ -156,7 +174,7 @@ def calibration_image(data_image):
             eye_center = (int(points[0][0]), int(points[0][1]))
             points = []
             distances = []
-
+            flag = True
             emit('redirect', {'url': url_for('tracking')})
 
         except:
@@ -253,25 +271,25 @@ def tracking_image(data_image):
 
 
 def draw_results(frame: np.ndarray) -> np.ndarray:
-    """This function draws the dot on the screen the user is looking at
+    """This function draws the point on the screen the user is looking at
     Args:
         frame: image to be processed
     Returns:
         frame: processed image"""
-    global previous_result, previous_time, previous_var, eye_center, eye_image_dimensions, distance
+    global previous_result, previous_time, previous_var, eye_center, eye_image_dimensions, distance, type_used
     frame.flags.writeable = False
     frame = cv2.flip(frame, 1)
     results = face_mesh.process(frame)
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
-            frame, previous_result, previous_var, previous_time = mp_drawing.gaze_tracking(previous_result, previous_var,
-                                                                                           previous_time, distance,
-                                                                                           eye_center,
-                                                                                           eye_image_dimensions,
-                                                                                           image=frame,
-                                                                                           landmark_list=face_landmarks)
-
+            frame, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result,
+                                                                                      previous_var,
+                                                                                      previous_time, distance,
+                                                                                      eye_center,
+                                                                                      eye_image_dimensions,
+                                                                                      image=frame,
+                                                                                      landmark_list=face_landmarks)
     return frame
 
 

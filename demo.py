@@ -10,12 +10,14 @@ import numpy as np
 def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solutions.face_mesh, mp_drawing: custom_drawing_utils) -> tuple:
     """This function performs calibration
     Args:
+        type_used: whether to perform eye or nose tracking
         cap: videoCapturing object
         mp_face_mesh: object for using mediapipe pipeling
         mp_drawing: object for plotting
     Returns:
         tuple: width and height of the reactangle where user's eyes moved during calibration,
         center point, distance from the user to the camera"""
+
     points = []
     distances = []
 
@@ -62,6 +64,7 @@ def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solution
 
             cv2.imshow('MediaPipe Face Mesh', annotated_image)
             pressedKey = cv2.waitKey(1) & 0xFF
+            # If space is pressed remember some numerical values
             if pressedKey == 32:
                 with mp_face_mesh.FaceMesh(
                         max_num_faces=1,
@@ -70,13 +73,17 @@ def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solution
                         min_tracking_confidence=0.5) as face_mesh:
                     results = face_mesh.process(image)
                     if results.multi_face_landmarks:
+                        # if we perform nose tracking only current nose coordinates are needed, all other values are hardcoded
+                        # in order to make the calibration process quicker
                         if type_used == 'nose':
                             return ((100, 50), (mp_drawing.find_nose_coord(results.multi_face_landmarks[0], image)), 45)
+
                         points.append(mp_drawing.find_iris_center(
                             results.multi_face_landmarks[0], image))
                         distances.append(mp_drawing.find_distance(
                             results.multi_face_landmarks[0], image))
                         break
+            # Close the application is ESC is pressed
             elif pressedKey == 27:
                 cap.release()
                 raise SystemExit
@@ -87,6 +94,7 @@ def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solution
     return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances))
 
 
+# Selecting whether to track nose or gaze
 while True:
     image = np.zeros((500, 1000))
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -168,18 +176,18 @@ with mp_face_mesh.FaceMesh(
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
-                                                                                               previous_time, distance,
-                                                                                               center_for_calculations,
-                                                                                               image_dimensions,
-                                                                                               image=image,
-                                                                                               landmark_list=face_landmarks)
+                                                                                          previous_time, distance,
+                                                                                          center_for_calculations,
+                                                                                          image_dimensions,
+                                                                                          image=image,
+                                                                                          landmark_list=face_landmarks)
 
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
             image_dimensions, center_for_calculations, distance = calibration(type_used,
-                cap, mp_face_mesh, mp_drawing)
+                                                                              cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 

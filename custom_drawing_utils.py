@@ -407,73 +407,74 @@ def draw_iris_landmarks(
 
 
 def tracking(type_used: str, previous_result: tuple, previous_var: int, previous_time: float, distance: float, center: tuple,
-                  image_dimensions: tuple,
-                  image: np.ndarray,
-                  landmark_list: landmark_pb2.NormalizedLandmarkList,
-                  eye_key_indicies=[
+             image_dimensions: tuple,
+             image: np.ndarray,
+             landmark_list: landmark_pb2.NormalizedLandmarkList,
+             eye_key_indicies=[
         # Left eye
         # eye lower contour
-                      33,
-                      7,
-                      163,
-                      144,
-                      145,
-                      153,
-                      154,
-                      155,
-                      133,
-                      # eye upper contour (excluding corners)
-                      246,
-                      161,
-                      160,
-                      159,
-                      158,
-                      157,
-                      173,
+                 33,
+                 7,
+                 163,
+                 144,
+                 145,
+                 153,
+                 154,
+                 155,
+                 133,
+                 # eye upper contour (excluding corners)
+                 246,
+                 161,
+                 160,
+                 159,
+                 158,
+                 157,
+                 173,
 
-                      # Right eye
-                      # eye lower contour
-                      263,
-                      249,
-                      390,
-                      373,
-                      374,
-                      380,
-                      381,
-                      382,
-                      362,
-                      # eye upper contour (excluding corners)
-                      466,
-                      388,
-                      387,
-                      386,
-                      385,
-                      384,
-                      398
+                 # Right eye
+                 # eye lower contour
+                 263,
+                 249,
+                 390,
+                 373,
+                 374,
+                 380,
+                 381,
+                 382,
+                 362,
+                 # eye upper contour (excluding corners)
+                 466,
+                 388,
+                 387,
+                 386,
+                 385,
+                 384,
+                 398
 
-                      ],
-                  iris_key_indicies=[
+                 ],
+             iris_key_indicies=[
 
         # Left iris points
-                      468,  # middle
-                      469,  # right
-                      470,  # up
-                      471,  # left
+                 468,  # middle
+                 469,  # right
+                 470,  # up
+                 471,  # left
         472,  # down
 
         # Right iris points
-                      473,  # middle
-                      474,  # left
-                      475,  # upper
-                      476,  # right
-                      477  # lower
+                 473,  # middle
+                 474,  # left
+                 475,  # upper
+                 476,  # right
+                 477  # lower
 
-                      ],
-                  eye_drwing_color=(255, 0, 0),
-                  iris_drawing_color=(0, 0, 255)
-                  ) -> tuple:
-    """This function draws iris landmarks and prints calculated distance to the user
+                 ],
+             eye_drwing_color=(255, 0, 0),
+             iris_drawing_color=(0, 0, 255)
+             ) -> tuple:
+    """This function draws iris landmarks, point on the screen the user is looking at and prints calculated distance to the user
     Args:
+        type_used: whether to perform eye or nose tracking
         previous_result: center_coordinates of the previous frame
         previous_var: variant selected on the previous frame 
         previous_time: time the user is looking at previous_var
@@ -537,6 +538,7 @@ def tracking(type_used: str, previous_result: tuple, previous_var: int, previous
         center_for_calculations = find_iris_center(landmark_list, image)
 
     elif type_used == 'nose':
+        # Current position of the center of user's nose
         center_for_calculations = find_nose_coord(landmark_list, image)
 
     else:
@@ -549,12 +551,12 @@ def tracking(type_used: str, previous_result: tuple, previous_var: int, previous
 
     # Current center coordinates of the point on the screen the user is looking at
     center_coordinates = find_center_coordinates(image, previous_result,
-                                                    distance, curr_distance, center, image_dimensions, center_for_calculations)
+                                                 distance, curr_distance, center, image_dimensions, center_for_calculations)
 
     # Plot current eye_center on the image
     cv2.circle(image, (center_for_calculations[0],
-        center_for_calculations[1]), radius, BLACK_COLOR, thickness)
-    
+                       center_for_calculations[1]), radius, BLACK_COLOR, thickness)
+
     # Plot eye_center from calibration on the image
     cv2.circle(image, center, radius, WHITE_COLOR, thickness)
 
@@ -574,6 +576,7 @@ def tracking(type_used: str, previous_result: tuple, previous_var: int, previous
         for j, h in enumerate(h_steps):
             start_coord = (i * w_steps[0], j * h_steps[0])
             end_coord = (start_coord[0] + w, start_coord[1] + h)
+            # Whether the current rectangle is selected
             if end_coord[0] >= center_coordinates[0] and end_coord[1] >= center_coordinates[1] \
                     and start_coord[0] <= center_coordinates[0] and start_coord[1] <= center_coordinates[1]:
                 choosen_rect_coord_st = start_coord
@@ -592,19 +595,20 @@ def tracking(type_used: str, previous_result: tuple, previous_var: int, previous
     # Plot currently chosen rectangle in GREEN
     cv2.rectangle(image, choosen_rect_coord_st,
                   choosen_rect_coord_end, GREEN_COLOR, 3)
-    
-    if type_used == 'eye': 
+
+    if type_used == 'eye':
         if not landmark_list:
             return
         if image.shape[2] != _RGB_CHANNELS:
-            raise ValueError('Input image must contain three channel rgb data.')
+            raise ValueError(
+                'Input image must contain three channel rgb data.')
         image_rows, image_cols, _ = image.shape
         idx_to_eye_coordinates = {}
         idx_to_iris_coordinates = {}
         for idx, landmark in enumerate(landmark_list.landmark):
 
             landmark_px = _normalized_to_pixel_coordinates(landmark.x, landmark.y,
-                                                        image_cols, image_rows)
+                                                           image_cols, image_rows)
             if landmark_px and idx in eye_key_indicies:
                 idx_to_eye_coordinates[idx] = landmark_px
 
@@ -613,16 +617,23 @@ def tracking(type_used: str, previous_result: tuple, previous_var: int, previous
 
         for landmark_px in idx_to_eye_coordinates.values():
             cv2.circle(image, landmark_px, 2,
-                    eye_drwing_color, 1)
+                       eye_drwing_color, 1)
 
         for landmark_px in idx_to_iris_coordinates.values():
             cv2.circle(image, landmark_px, 2,
-                    iris_drawing_color, 1)
+                       iris_drawing_color, 1)
 
     return image, center_coordinates, curr_var, curr_time
 
 
 def find_nose_coord(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.ndarray) -> tuple:
+    """This function returns nose center coordinates
+    Args:
+        landmark_list: A normalized landmark list proto message
+        image: current frame 
+    Returns:
+        tuple: calculated center coordinates"""
+
     return (int(landmark_list.landmark[1].x * image.shape[1]), int(landmark_list.landmark[1].y * image.shape[0]))
 
 
@@ -680,11 +691,6 @@ def find_center_coordinates_enhanced(image: np.ndarray, previous_result: tuple, 
     factor = curr_distance / distance
     # Smoothing parameter
     gamma = 0.9
-
-    # desktop parameters
-    # screen_center = (640, 360)
-    # w = 1280
-    # h = 720
 
     w = image.shape[1]
     h = image.shape[0]
@@ -827,43 +833,3 @@ def find_points(landmark_list: landmark_pb2.NormalizedLandmarkList, image: np.nd
                    (landmarks[65].y + landmarks[295].y) / 2 * image.shape[0])
 
     return eye_center, right_point, left_point, bottom_point, upper_point
-
-
-def find_coordinates(distance: float, point: tuple) -> tuple:
-    """TEST FUNCTION
-    This function calculated center coordinates of the point on the screen where the user is looking
-    Args:
-        distance: distance from user's eyes to the camera from calibration
-        point: current position of user's eyes
-    Returns:
-        tuple: center coordinates of the point on the screen the user is looking at"""
-    center = (640, 360)
-    w = 29.5
-    h = 17.7
-
-    alpha = math.atan(w / 2 / distance)
-
-    difference_x = center[0] - point[0]
-    difference_y = center[1] - point[1]
-
-    gamma = alpha * abs(difference_x) / w * 2
-
-    change = distance * math.atan(gamma)
-
-    if difference_x < 0:
-        result_x = center[0] + change * 40
-    else:
-        result_x = center[0] - change * 40
-
-    gamma = alpha * abs(difference_y) / h * 2
-
-    change = distance * math.atan(gamma)
-
-    if difference_y < 0:
-        result_y = center[1] + change * 43
-    else:
-        result_y = center[1] - change * 43
-
-    result = (int(result_x), int(result_y))
-    print(result)
-    return result

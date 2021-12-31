@@ -36,6 +36,7 @@
             width: 100%;
             height: 100%;
         }
+        #footerlinks li { width: 100px; display: inline-block; }
     </style>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -43,7 +44,10 @@
 </head>
 
 <body>
-    <a href="{{ url_for('calibration') }}">Recalibrate</a>
+    <ul id="footerlinks">
+        <li><a href="{{ url_for('calibration_gaze') }}">Gaze Tracking</a></li>
+        <li><a href="{{ url_for('calibration_nose') }}">Nose Tracking</a></li>
+      </ul>
     <div id="container">
         <video hidden autoplay playsinline id="videoElement"></video>
         <canvas hidden id="canvas"></canvas>
