@@ -80,12 +80,15 @@ def catch_frame(data):
 
 
 global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
-    previous_var, previous_time, flag, type_used, counter
+    previous_var, previous_time, flag, type_used, counter, prev_time, factors
+
+#Center, left, right, up, down
+factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 
 def refresh():
     """This function returns all global variables to their starting values"""
     global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
-        previous_var, previous_time, flag, type_used, counter
+        previous_var, previous_time, flag, type_used, counter, prev_time
     fps = 30
     prev_recv_time = 0
     cnt = 0
@@ -101,6 +104,7 @@ def refresh():
     flag = False
     type_used = None
     counter = 0
+    prev_time = 0
 
 refresh()
 mp_drawing = custom_drawing_utils
@@ -111,11 +115,6 @@ face_mesh = mp_face_mesh.FaceMesh(
     refine_landmarks=True,
     min_detection_confidence=0.3,
     min_tracking_confidence=0.5)
-
-global prev_time, factors
-prev_time = 0
-#Center, left, right, up, down
-factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 
 @socketio.on('image_calibration')
 def calibration_image(data_image):
