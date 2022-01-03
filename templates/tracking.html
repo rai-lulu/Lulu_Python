@@ -44,10 +44,7 @@
 </head>
 
 <body>
-    <ul id="footerlinks">
-        <li><a href="{{ url_for('calibration_gaze') }}">Gaze Tracking</a></li>
-        <li><a href="{{ url_for('calibration_nose') }}">Nose Tracking</a></li>
-      </ul>
+    <a href="{{ url_for('index') }}">Main page</a>
     <div id="container">
         <video hidden autoplay playsinline id="videoElement"></video>
         <canvas hidden id="canvas"></canvas>
