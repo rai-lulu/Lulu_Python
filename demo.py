@@ -196,13 +196,13 @@ with mp_face_mesh.FaceMesh(
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         try:
             if results.multi_face_landmarks:
-                for face_landmarks in results.multi_face_landmarks:
-                    image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
-                                                                                              previous_time, distance,
-                                                                                              center_for_calculations,
-                                                                                              image_dimensions,
-                                                                                              image=image,
-                                                                                              landmark_list=face_landmarks)
+                image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
+                                                                                            previous_time, distance,
+                                                                                            center_for_calculations,
+                                                                                            image_dimensions,
+                                                                                            image=image,
+                                                                                            landmark_list=results.
+                                                                                            multi_face_landmarks[0])
         except:
             type_used, image_dimensions, center_for_calculations, distance = recalibration(
                 cap, mp_face_mesh, mp_drawing)
