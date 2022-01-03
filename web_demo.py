@@ -33,17 +33,17 @@ def index():
 
 @app.route('/calibration_gaze', methods=['POST', 'GET'])
 def calibration_gaze():
-    global flag, type_used
+    global type_used
+    refresh()
     type_used = 'eye'
-    flag = False
     return render_template('calibration.html')
 
 
 @app.route('/calibration_nose', methods=['POST', 'GET'])
 def calibration_nose():
-    global flag, type_used
+    global type_used
+    refresh()
     type_used = 'nose'
-    flag = False
     return render_template('calibration.html')
 
 
@@ -81,22 +81,27 @@ def catch_frame(data):
 
 global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
     previous_var, previous_time, flag, type_used
-fps = 30
-prev_recv_time = 0
-cnt = 0
-fps_array = [0]
-eye_center = None
-distance = 0
-points = []
-distances = []
-eye_image_dimensions = None
-previous_result = (640, 360)
-previous_var = 1
-previous_time = 0
-flag = True
-type_used = None
 
+def refresh():
+    """This function returns all global variables to their starting values"""
+    global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
+        previous_var, previous_time, flag, type_used
+    fps = 30
+    prev_recv_time = 0
+    cnt = 0
+    fps_array = [0]
+    eye_center = None
+    distance = 0
+    points = []
+    distances = []
+    eye_image_dimensions = None
+    previous_result = (640, 360)
+    previous_var = 1
+    previous_time = 0
+    flag = False
+    type_used = None
 
+refresh()
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
 
@@ -172,8 +177,6 @@ def calibration_image(data_image):
             eye_image_dimensions = (eye_image_width, eye_image_height)
             distance = mean(distances)
             eye_center = (int(points[0][0]), int(points[0][1]))
-            points = []
-            distances = []
             flag = True
             emit('redirect', {'url': url_for('tracking')})
 
@@ -182,7 +185,6 @@ def calibration_image(data_image):
             flag = True
             emit('redirect', {'url': url_for('index')})
 
-    print(counter)
     imgencode = cv2.imencode(
         '.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
 

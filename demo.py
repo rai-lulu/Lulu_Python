@@ -94,35 +94,56 @@ def calibration(type_used: str, cap: cv2.VideoCapture, mp_face_mesh: mp.solution
     return ((eye_image_width, eye_image_height), (int(points[0][0]), int(points[0][1])), mean(distances))
 
 
-# Selecting whether to track nose or gaze
-while True:
-    image = np.zeros((500, 1000))
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    bottomLeftCornerOfText = (10, 30)
-    fontScale = 1
-    fontColor = (255, 255, 255)
-    thickness = 1
-    lineType = 2
+def recalibration(cap, mp_face_mesh, mp_drawing):
+    """This function performs calibration
+    Args:
+        cap: videoCapturing object
+        mp_face_mesh: object for using mediapipe pipeling
+        mp_drawing: object for plotting
+    Returns:
+        type_used: tracking mode
+        tuple: width and height of the reactangle where user's eyes moved during calibration,
+        center point, distance from the user to the camera"""
+    cv2.destroyAllWindows()
+    type_used = mode_selection()
+    image_dimensions, center_for_calculations, distance = calibration(type_used,
+                                                                      cap, mp_face_mesh, mp_drawing)
+    return type_used, image_dimensions, center_for_calculations, distance
 
-    cv2.putText(image, 'Please, press a for eye tracking and b for nose tracking',
-                bottomLeftCornerOfText,
-                font,
-                fontScale,
-                fontColor,
-                thickness,
-                lineType)
-    cv2.imshow('Choose your variant', image)
-    pressedKey = cv2.waitKey(1) & 0xFF
-    if pressedKey == ord('a'):
-        type_used = 'eye'
-        cv2.destroyAllWindows()
-        break
-    elif pressedKey == ord('b'):
-        type_used = 'nose'
-        cv2.destroyAllWindows()
-        break
-    elif pressedKey == 27:
-        raise SystemExit
+# Selecting whether to track nose or gaze
+
+
+def mode_selection() -> str:
+    """This function performs tracking mode selection
+    Returns:
+        desired tracking mode"""
+    while True:
+        image = np.zeros((500, 1000))
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        bottomLeftCornerOfText = (10, 30)
+        fontScale = 1
+        fontColor = (255, 255, 255)
+        thickness = 1
+        lineType = 2
+
+        cv2.putText(image, 'Please, press a for eye tracking and b for nose tracking',
+                    bottomLeftCornerOfText,
+                    font,
+                    fontScale,
+                    fontColor,
+                    thickness,
+                    lineType)
+        cv2.imshow('Choose your variant', image)
+        pressedKey = cv2.waitKey(1) & 0xFF
+        if pressedKey == ord('a'):
+            cv2.destroyAllWindows()
+            return 'eye'
+        elif pressedKey == ord('b'):
+            cv2.destroyAllWindows()
+            return 'nose'
+        elif pressedKey == 27:
+            raise SystemExit
+
 
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
@@ -136,8 +157,8 @@ prev_frame_time = 0
 # used to record the time at which we processed current frame
 new_frame_time = 0
 
-image_dimensions, center_for_calculations, distance = calibration(type_used,
-                                                                  cap, mp_face_mesh, mp_drawing)
+type_used, image_dimensions, center_for_calculations, distance = recalibration(
+    cap, mp_face_mesh, mp_drawing)
 
 with mp_face_mesh.FaceMesh(
         max_num_faces=1,
@@ -173,21 +194,24 @@ with mp_face_mesh.FaceMesh(
         # Draw the face mesh annotations on the image.
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
-                                                                                          previous_time, distance,
-                                                                                          center_for_calculations,
-                                                                                          image_dimensions,
-                                                                                          image=image,
-                                                                                          landmark_list=face_landmarks)
-
+        try:
+            if results.multi_face_landmarks:
+                for face_landmarks in results.multi_face_landmarks:
+                    image, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result, previous_var,
+                                                                                              previous_time, distance,
+                                                                                              center_for_calculations,
+                                                                                              image_dimensions,
+                                                                                              image=image,
+                                                                                              landmark_list=face_landmarks)
+        except:
+            type_used, image_dimensions, center_for_calculations, distance = recalibration(
+                cap, mp_face_mesh, mp_drawing)
         # Flip the image horizontally for a selfie-view display.
         cv2.imshow('MediaPipe Face Mesh', image)
         pressedKey = cv2.waitKey(1) & 0xFF
         if pressedKey == 32:
-            image_dimensions, center_for_calculations, distance = calibration(type_used,
-                                                                              cap, mp_face_mesh, mp_drawing)
+            type_used, image_dimensions, center_for_calculations, distance = recalibration(
+                cap, mp_face_mesh, mp_drawing)
         elif pressedKey == 27:
             break
 
