@@ -85,6 +85,7 @@ global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distan
 #Center, left, right, up, down
 factors = [(1/2, 1/2), (0, 1/2), (1, 1/2), (1/2, 0), (1/2, 1)]
 
+
 def refresh():
     """This function returns all global variables to their starting values"""
     global fps, prev_recv_time, cnt, fps_array, eye_center, distance, points, distances, eye_image_dimensions, previous_result,\
@@ -106,6 +107,7 @@ def refresh():
     counter = 0
     prev_time = 0
 
+
 refresh()
 mp_drawing = custom_drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
@@ -115,6 +117,7 @@ face_mesh = mp_face_mesh.FaceMesh(
     refine_landmarks=True,
     min_detection_confidence=0.3,
     min_tracking_confidence=0.5)
+
 
 @socketio.on('image_calibration')
 def calibration_image(data_image):
@@ -159,9 +162,8 @@ def calibration_image(data_image):
                     flag = True
                     emit('redirect', {'url': url_for('index')})
 
-            landmarks = results.multi_face_landmarks[0].landmark
-            points.append(((landmarks[473].x + landmarks[468].x) / 2 * frame.shape[1],
-                           (landmarks[473].y + landmarks[468].y) / 2 * frame.shape[0]))
+            points.append(mp_drawing.find_iris_center(
+                results.multi_face_landmarks[0], frame))
             distances.append(mp_drawing.find_distance(
                 results.multi_face_landmarks[0], frame))
         else:
@@ -251,7 +253,7 @@ def tracking_image(data_image):
     frame = (readb64(data_image))
     frame = draw_results(frame)
     if frame is None:
-        return 
+        return
     frame = ps.putBText(frame, text, text_offset_x=20, text_offset_y=30, vspace=20,
                         hspace=10, font_scale=1.0, background_RGB=(10, 20, 222), text_RGB=(255, 255, 255))
     imgencode = cv2.imencode('.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
@@ -290,12 +292,12 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
     frame.flags.writeable = True
     if results.multi_face_landmarks:
         frame, previous_result, previous_var, previous_time = mp_drawing.tracking(type_used, previous_result,
-                                                                                    previous_var,
-                                                                                    previous_time, distance,
-                                                                                    eye_center,
-                                                                                    eye_image_dimensions,
-                                                                                    image=frame,
-                                                                                    landmark_list=results.multi_face_landmarks[0])
+                                                                                  previous_var,
+                                                                                  previous_time, distance,
+                                                                                  eye_center,
+                                                                                  eye_image_dimensions,
+                                                                                  image=frame,
+                                                                                  landmark_list=results.multi_face_landmarks[0])
     return frame
 
 
