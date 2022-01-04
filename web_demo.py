@@ -250,6 +250,8 @@ def tracking_image(data_image):
     text = 'FPS: '+str(fps)
     frame = (readb64(data_image))
     frame = draw_results(frame)
+    if frame is None:
+        return 
     frame = ps.putBText(frame, text, text_offset_x=20, text_offset_y=30, vspace=20,
                         hspace=10, font_scale=1.0, background_RGB=(10, 20, 222), text_RGB=(255, 255, 255))
     imgencode = cv2.imencode('.jpeg', frame, [cv2.IMWRITE_JPEG_QUALITY, 40])[1]
@@ -280,6 +282,8 @@ def draw_results(frame: np.ndarray) -> np.ndarray:
     Returns:
         frame: processed image"""
     global previous_result, previous_time, previous_var, eye_center, eye_image_dimensions, distance, type_used
+    if eye_center is None:
+        return
     frame.flags.writeable = False
     frame = cv2.flip(frame, 1)
     results = face_mesh.process(frame)
